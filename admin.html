@@ -1,0 +1,1086 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>벤슨 가맹문의 DB</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+<style>
+:root{
+  --ink:#15213B; --ink-2:#47526B; --ink-3:#7A8499;
+  --navy:#15213B; --brand:#2350B0; --brand-ink:#183C8C; --brand-tint:#EDF2FB;
+  --paper:#fff; --ground:#F2F5FA; --line:#DCE2EC; --line-2:#EAEEF4;
+  --danger:#B42318; --warn:#B54708;
+  --sans:"Pretendard",-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+}
+*{box-sizing:border-box}
+html{color-scheme:light}
+body{margin:0;font:14px/1.5 var(--sans);color:var(--ink);background:var(--ground);word-break:keep-all}
+button,input,select,textarea{font:inherit;color:inherit}
+[hidden]{display:none!important}
+:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.muted{color:var(--ink-3)}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:36px;padding:0 14px;border:1px solid var(--line);
+  border-radius:8px;background:#fff;font-weight:600;cursor:pointer;white-space:nowrap}
+.btn:hover{border-color:#B9C3D4}
+.btn.primary{background:var(--brand);border-color:var(--brand);color:#fff}
+.btn.primary:hover{background:var(--brand-ink)}
+.btn.danger{color:var(--danger);border-color:transparent;background:none;padding:0 6px}
+.btn.danger:hover{text-decoration:underline}
+.btn.small{min-height:30px;padding:0 10px;font-size:13px}
+.btn:disabled{opacity:.6;cursor:progress}
+
+/* 로그인 */
+.login{min-height:100vh;display:grid;place-items:center;padding:24px}
+.login-card{width:min(380px,100%);background:#fff;border:1px solid var(--line);border-radius:14px;padding:32px 28px 28px}
+.wordmark{font-weight:800;letter-spacing:.14em;font-size:14px;color:var(--brand)}
+.login-card h1{font-size:22px;margin:10px 0 22px}
+.login-card label{display:grid;gap:6px;font-weight:600;color:var(--ink-2);margin-bottom:14px}
+.login-card input{height:44px;border:1px solid var(--line);border-radius:8px;padding:0 12px;background:#fff}
+.login-card .btn{width:100%;min-height:46px;margin-top:6px}
+.login-msg{white-space:pre-line;color:var(--danger);font-size:13px;margin:0 0 12px}
+.login-msg:empty{display:none}
+
+/* 상단 바 */
+.bar{position:sticky;top:0;z-index:20;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:space-between;
+  gap:16px;padding:0 24px;height:56px}
+.bar-l{display:flex;align-items:center;gap:14px;height:100%}
+.bar .wordmark{color:#9DB7F0}
+.bar-title{font-weight:700;font-size:15px}
+.tabs{display:flex;gap:2px;height:100%;margin-left:12px}
+.tabs button{border:0;background:none;color:#B8C3DA;padding:0 12px;font-weight:600;cursor:pointer;border-bottom:3px solid transparent;border-top:3px solid transparent}
+.tabs button:hover{color:#fff}
+.tabs button.on{color:#fff;border-bottom-color:#7EA2F0}
+.bar-r{display:flex;align-items:center;gap:12px;color:#B8C3DA;font-size:13px}
+.bar-r .btn{background:transparent;border-color:#3A4866;color:#fff;min-height:30px}
+.demo{background:#FFF6E5;color:#7A4B00;padding:8px 24px;font-size:13px;border-bottom:1px solid #F1DDB4}
+
+main{padding:20px 24px 56px;max-width:1440px;margin:0 auto}
+
+/* 요약 */
+.kpis{display:flex;background:#fff;border:1px solid var(--line);border-radius:10px;margin-bottom:14px;overflow:hidden}
+.kpi{flex:1;border:0;border-left:1px solid var(--line-2);background:none;text-align:left;padding:12px 18px;cursor:pointer;display:grid;gap:1px}
+.kpi:first-child{border-left:0}
+.kpi:hover{background:#F7F9FD}
+.kpi .k{font-size:12.5px;color:var(--ink-2);font-weight:600}
+.kpi .v{font-size:24px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.3}
+.kpi.on{background:var(--brand-tint);box-shadow:inset 0 -3px 0 var(--brand)}
+.kpi[data-k="A"] .v{color:var(--brand)}
+.kpi[data-k="new"] .v{color:var(--warn)}
+
+/* 필터 */
+.filters{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+.filters input,.filters select{height:36px;border:1px solid var(--line);border-radius:8px;padding:0 10px;background:#fff}
+.filters .search{flex:1 1 220px;min-width:180px}
+.filters .range{display:inline-flex;align-items:center;gap:6px;color:var(--ink-3)}
+.tbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.tbar .count{color:var(--ink-2);font-weight:600}
+.tbar .acts{display:flex;gap:8px;flex-wrap:wrap}
+
+/* 표 */
+.table-wrap{background:#fff;border:1px solid var(--line);border-radius:10px;overflow:auto;max-height:calc(100vh - 290px)}
+.tbl{width:100%;border-collapse:collapse;min-width:960px}
+.tbl th{position:sticky;top:0;z-index:1;background:#F7F9FC;text-align:left;font-size:12.5px;color:var(--ink-2);font-weight:700;
+  padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+.tbl td{padding:11px 12px;border-bottom:1px solid var(--line-2);white-space:nowrap;vertical-align:middle}
+.tbl tbody tr{cursor:pointer}
+.tbl tbody tr:hover{background:#F7F9FD}
+.tbl tbody tr.sel{background:var(--brand-tint)}
+.tbl .r{text-align:right;font-variant-numeric:tabular-nums}
+.tbl .c{text-align:center}
+.tbl .region{max-width:260px;overflow:hidden;text-overflow:ellipsis}
+.tbl .who{font-weight:700}
+.empty{padding:56px 16px;text-align:center;color:var(--ink-3)}
+
+.badge{display:inline-grid;place-items:center;min-width:26px;height:24px;padding:0 7px;border-radius:6px;font-weight:800;font-size:13px}
+.badge.A{background:var(--brand);color:#fff}
+.badge.B{background:#D9E4F8;color:#183C8C}
+.badge.C{background:#E8EBF0;color:#566077}
+.adj{font-size:11.5px;color:var(--ink-3);margin-left:4px}
+.st{display:inline-flex;align-items:center;gap:6px;font-weight:600}
+.st::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.st.new{color:var(--warn)} .st.reviewed{color:var(--ink-2)} .st.consult{color:var(--brand)} .st.hold{color:var(--ink-3)}
+.tag{font-size:11.5px;font-weight:600;color:var(--warn);border:1px solid #F3D9B8;background:#FFF7EB;border-radius:4px;padding:1px 5px;margin-left:6px}
+
+/* 상세 패널 */
+.scrim{position:fixed;inset:0;background:rgba(21,33,59,.28);z-index:30}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(540px,100vw);background:#fff;z-index:40;display:flex;flex-direction:column;
+  box-shadow:-12px 0 32px rgba(21,33,59,.16);animation:slide .18s ease-out}
+@keyframes slide{from{transform:translateX(24px);opacity:.4}to{transform:none;opacity:1}}
+.d-head{padding:18px 22px 16px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.d-title{font-size:19px;font-weight:800;margin:0;display:flex;align-items:center;gap:8px}
+.d-sub{margin:4px 0 0;color:var(--ink-3);font-size:13px}
+.d-close{border:0;background:none;font-size:22px;line-height:1;color:var(--ink-3);cursor:pointer;padding:4px 8px;border-radius:6px}
+.d-close:hover{background:var(--ground);color:var(--ink)}
+.d-body{overflow:auto;padding:0 22px 28px;flex:1}
+.d-sec{padding:18px 0;border-bottom:1px solid var(--line-2)}
+.d-sec:last-child{border-bottom:0}
+.d-sec h3{font-size:13px;color:var(--ink-2);margin:0 0 10px;font-weight:700}
+.warn{background:#FFF7EB;border:1px solid #F3D9B8;color:#7A3E00;padding:9px 12px;border-radius:8px;margin:0 0 10px;font-size:13px}
+.score-tbl{width:100%;border-collapse:collapse}
+.score-tbl td{padding:8px 0;border-bottom:1px dashed var(--line-2);vertical-align:top}
+.score-tbl .note{color:var(--ink-3);font-size:12.5px}
+.score-tbl .pt{text-align:right;font-weight:800;font-variant-numeric:tabular-nums;width:90px}
+.score-tbl .pt small{font-weight:500;color:var(--ink-3)}
+.meter{height:4px;background:var(--line-2);border-radius:2px;margin-top:6px;overflow:hidden}
+.meter i{display:block;height:100%;background:var(--brand)}
+.score-sum{display:flex;justify-content:space-between;align-items:center;margin-top:12px;font-weight:700}
+.score-sum b{font-size:20px}
+.ans{display:grid;grid-template-columns:104px minmax(0,1fr);gap:9px 14px;margin:0}
+.ans dt{color:var(--ink-3);font-size:13px;padding-top:1px}
+.ans dd{margin:0;white-space:pre-wrap;word-break:break-word}
+.ans .sub{color:var(--ink-2)}
+.ans a{color:var(--brand)}
+.manage{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.manage label{display:grid;gap:5px;font-size:13px;color:var(--ink-2);font-weight:600}
+.manage .full{grid-column:1/-1}
+.manage select,.manage textarea{border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:#fff;color:var(--ink)}
+.manage select{height:38px}
+.manage textarea{min-height:90px;resize:vertical}
+.m-actions{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center}
+.m-meta{grid-column:1/-1;color:var(--ink-3);font-size:12.5px;margin:0}
+
+/* 등급 기준 */
+.settings{max-width:1080px}
+.set-head h1{font-size:20px;margin:4px 0 6px}
+.set-head p{color:var(--ink-2);margin:0 0 18px;max-width:60em}
+.set-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.set-card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:18px 20px}
+.set-card.wide{grid-column:1/-1}
+.set-card h2{font-size:15px;margin:0 0 10px}
+.srow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:6px 0}
+.srow + .srow{border-top:1px dashed var(--line-2)}
+.num{display:inline-flex;align-items:center;gap:6px;color:var(--ink-2);white-space:nowrap}
+.num input{width:96px;height:34px;border:1px solid var(--line);border-radius:7px;padding:0 8px;text-align:right;font-variant-numeric:tabular-nums;background:#fff}
+.hint{color:var(--ink-3);font-size:12.5px;margin:10px 0 0}
+.kw{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:end;padding:8px 0}
+.kw + .kw{border-top:1px dashed var(--line-2)}
+.kw label{display:grid;gap:6px;font-weight:600;color:var(--ink-2)}
+.kw textarea{width:100%;min-height:70px;border:1px solid var(--line);border-radius:8px;padding:8px 10px;resize:vertical;background:#fff;font-weight:400;color:var(--ink)}
+.tier .btn{margin-left:auto}
+.set-bar{position:sticky;bottom:12px;margin-top:16px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px 16px;
+  display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;box-shadow:0 8px 24px rgba(21,33,59,.10)}
+.set-bar .acts{display:flex;gap:8px}
+
+/* 메일 문의 등록·응답 수정 */
+.drawer.wide{width:min(720px,100vw)}
+.d-foot{border-top:1px solid var(--line);padding:12px 22px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 12px;align-items:center;background:#fff}
+.d-foot .e-err{grid-column:1/-1;margin:0;color:var(--danger);font-weight:600;font-size:13px}
+.d-foot .e-err:empty{display:none}
+.d-foot .acts{display:flex;gap:8px}
+.e-prev{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:13px}
+.e-prev b{font-size:18px}
+.e-prev .warn-inline{color:var(--warn);font-weight:700}
+.eg{display:grid;grid-template-columns:1fr 1fr;gap:12px 14px}
+.eg label,.eg .grp{display:grid;gap:5px;font-size:13px;font-weight:600;color:var(--ink-2);align-content:start}
+.eg .full{grid-column:1/-1}
+.eg input,.eg select,.eg textarea{width:100%;height:38px;border:1px solid var(--line);border-radius:8px;padding:0 10px;background:#fff;color:var(--ink);font-weight:400}
+.eg textarea{height:auto;min-height:64px;padding:8px 10px;resize:vertical}
+.eg small{font-weight:600;color:var(--brand-ink)}
+.eg .opt{font-weight:500;color:var(--ink-3)}
+.e-region{display:grid;grid-template-columns:96px 176px minmax(0,1fr) auto;gap:6px;margin-bottom:6px}
+.e-region select:disabled{background:#F6F8FB}
+.raw{width:100%;min-height:150px;border:1px solid var(--line);border-radius:8px;padding:10px 12px;font:13px/1.55 var(--sans);resize:vertical}
+.e-row{display:flex;align-items:center;gap:10px;margin-top:8px;flex-wrap:wrap}
+.e-warn{margin:10px 0 0;padding:10px 12px 10px 28px;background:#FFF7EB;border:1px solid #F3D9B8;border-radius:8px;color:#7A3E00;font-size:13px}
+.e-info{margin:8px 0 0;padding:0 0 0 18px;color:var(--ink-2);font-size:13px}
+.d-sec h3 .muted{font-weight:500;margin-left:6px}
+.h3row{display:flex;justify-content:space-between;align-items:center;margin:0 0 10px}
+.h3row h3{margin:0}
+.raw-view summary{cursor:pointer;color:var(--brand);font-weight:600}
+.raw-view pre{white-space:pre-wrap;word-break:break-word;background:var(--ground);border-radius:8px;padding:10px 12px;font:12.5px/1.55 var(--sans);max-height:320px;overflow:auto;margin:10px 0 0}
+@media (max-width:820px){.eg{grid-template-columns:1fr}.e-region{grid-template-columns:1fr 1fr}.e-region .area{grid-column:1/-1}}
+
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--navy);color:#fff;padding:10px 16px;border-radius:8px;
+  font-weight:600;opacity:0;pointer-events:none;transition:opacity .2s;z-index:60;max-width:90vw}
+#toast.show{opacity:1}
+#toast.err{background:var(--danger)}
+
+@media (max-width:820px){
+  .set-grid{grid-template-columns:1fr}
+  .bar{padding:0 14px}
+  .bar-title,.bar-r span{display:none}
+  main{padding:14px 12px 48px}
+  .kpi{padding:10px 12px}
+  .kpi .v{font-size:20px}
+  .manage{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<!-- 로그인 -->
+<div class="login" id="login" hidden>
+  <form class="login-card" id="loginForm">
+    <div class="wordmark">BENSON</div>
+    <h1>가맹문의 DB</h1>
+    <p class="login-msg" id="loginMsg"></p>
+    <label>이메일<input type="email" id="lEmail" autocomplete="username" required></label>
+    <label>비밀번호<input type="password" id="lPw" autocomplete="current-password" required></label>
+    <button class="btn primary" id="lBtn">로그인</button>
+  </form>
+</div>
+
+<!-- 앱 -->
+<div id="app" hidden>
+  <header class="bar">
+    <div class="bar-l">
+      <span class="wordmark">BENSON</span>
+      <span class="bar-title">가맹문의 DB</span>
+      <nav class="tabs" aria-label="화면 전환">
+        <button type="button" data-tab="list" class="on">문의 목록</button>
+        <button type="button" data-tab="settings">등급 기준</button>
+      </nav>
+    </div>
+    <div class="bar-r"><span id="who"></span><button type="button" class="btn small" id="logout">로그아웃</button></div>
+  </header>
+  <div class="demo" id="demoBanner" hidden>데모 화면입니다. 예시 데이터로 동작하며 실제 DB에는 저장되지 않습니다.</div>
+
+  <main id="tab-list">
+    <section class="kpis" id="kpis" aria-label="등급별 건수"></section>
+
+    <section class="filters" aria-label="검색 조건">
+      <input type="search" class="search" id="fQ" placeholder="성함, 연락처, 이메일, 지역 검색">
+      <span class="range"><input type="date" id="fFrom" aria-label="시작일"> ~ <input type="date" id="fTo" aria-label="종료일"></span>
+      <select id="fGrade" aria-label="등급"><option value="">등급 전체</option><option>A</option><option>B</option><option>C</option></select>
+      <select id="fStatus" aria-label="처리 상태"></select>
+      <select id="fSource" aria-label="유입 경로"></select>
+      <select id="fSort" aria-label="정렬"><option value="new">최신순</option><option value="score">점수순</option></select>
+    </section>
+
+    <div class="tbar">
+      <span class="count" id="count"></span>
+      <div class="acts">
+        <button type="button" class="btn" id="copyMail">메일용 접수폼 링크 복사</button>
+        <button type="button" class="btn" id="copyHp">홈페이지용 링크 복사</button>
+        <button type="button" class="btn" id="exportBtn">엑셀 다운로드</button>
+        <button type="button" class="btn primary" id="newEntry">메일 문의 등록</button>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="tbl">
+        <thead><tr>
+          <th>접수일시</th><th>성함</th><th>연락처</th><th>희망 지역</th><th class="r">투자 가능</th>
+          <th class="r">점수</th><th class="c">등급</th><th>처리 상태</th><th>유입</th>
+        </tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+      <p class="empty" id="empty" hidden></p>
+    </div>
+  </main>
+
+  <main id="tab-settings" class="settings" hidden>
+    <div class="set-head">
+      <h1>등급 분류 기준</h1>
+      <p>STEP 1 등급(A 우선 상담, B 상담, C 보류)을 계산하는 기준입니다. 저장하면 모든 문의가 새 기준으로 다시 분류되며, 검토 처리한 문의는 처리 당시 등급이 따로 남습니다.</p>
+    </div>
+    <div class="set-grid">
+      <section class="set-card">
+        <h2>필수 조건</h2>
+        <div class="srow"><span>최소 투자 가능 금액</span><span class="num"><input type="number" min="0" step="500" data-k="minInvest"> 만원</span></div>
+        <p class="hint">이 금액 미만이면 점수와 관계없이 C(보류)로 분류합니다.</p>
+      </section>
+      <section class="set-card">
+        <h2>투자 여력</h2>
+        <div id="tierRows"></div>
+        <button type="button" class="btn small" id="addTier" style="margin-top:8px">구간 추가</button>
+        <p class="hint">금액이 큰 구간부터 적용하고, 어느 구간에도 들지 않으면 0점입니다.</p>
+      </section>
+      <section class="set-card wide">
+        <h2>희망 지역</h2>
+        <div class="kw">
+          <label>1순위 상권 키워드<textarea data-k="kw.p1" placeholder="예: 성남시 분당구, 판교, 서울 송파구"></textarea></label>
+          <span class="num"><input type="number" min="0" max="100" data-k="regionScore.p1"> 점</span>
+        </div>
+        <div class="kw">
+          <label>2순위 상권 키워드<textarea data-k="kw.p2" placeholder="예: 용인시 수지구, 광교"></textarea></label>
+          <span class="num"><input type="number" min="0" max="100" data-k="regionScore.p2"> 점</span>
+        </div>
+        <div class="srow"><span>그 외 지역</span><span class="num"><input type="number" min="0" max="100" data-k="regionScore.other"> 점</span></div>
+        <p class="hint">쉼표나 줄바꿈으로 구분합니다. 신청자가 고른 ‘시·도 시·군·구’와 직접 쓴 상권명에 키워드가 들어 있으면 그 순위로 봅니다(희망 지역이 여러 곳이면 가장 높은 순위 적용). 중구·남구처럼 이름이 겹치는 구는 ‘서울 중구’처럼 시·도를 붙여 쓰세요.</p>
+      </section>
+      <section class="set-card"><h2>외식업 경험</h2><div id="setFnb"></div></section>
+      <section class="set-card"><h2>운영 참여 계획</h2><div id="setOper"></div></section>
+      <section class="set-card"><h2>점포 확보 여부</h2><div id="setStore"></div></section>
+      <section class="set-card"><h2>희망 오픈 시기</h2><div id="setOpen"></div></section>
+      <section class="set-card wide">
+        <h2>등급 구간</h2>
+        <div class="srow"><span><span class="badge A">A</span> 우선 상담</span><span class="num"><input type="number" min="0" data-k="cut.A"> 점 이상</span></div>
+        <div class="srow"><span><span class="badge B">B</span> 상담</span><span class="num"><input type="number" min="0" data-k="cut.B"> 점 이상</span></div>
+        <div class="srow"><span><span class="badge C">C</span> 보류</span><span class="muted">B 기준 미만 또는 필수 조건 미충족</span></div>
+        <p class="hint">연령대, 지원 사유, 기타 문의는 점수에 넣지 않고 상세 화면에서 참고용으로만 보여 줍니다.</p>
+      </section>
+    </div>
+    <div class="set-bar">
+      <div id="setPreview"></div>
+      <div class="acts">
+        <button type="button" class="btn" id="setReset">기본값 불러오기</button>
+        <button type="button" class="btn primary" id="setSave">기준 저장</button>
+      </div>
+    </div>
+  </main>
+
+  <div class="scrim" id="scrim" hidden></div>
+  <aside class="drawer" id="drawer" hidden aria-labelledby="dTitle" role="dialog">
+    <div class="d-head">
+      <div><h2 class="d-title" id="dTitle"></h2><p class="d-sub" id="dSub"></p></div>
+      <button type="button" class="d-close" id="dClose" aria-label="닫기">×</button>
+    </div>
+    <div class="d-body" id="dBody"></div>
+    <div class="d-foot" id="dFoot" hidden></div>
+  </aside>
+</div>
+
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script type="module">
+import * as C from "./config.js";
+import * as P from "./mail-parser.js";
+
+const $  = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+const esc = C.esc;
+const DEMO = new URLSearchParams(location.search).has("demo");
+
+let fb = null, user = null, unsub = null;
+let ALL = [], VIEW = [];
+let CFG = C.mergeGrading();
+const filt = { q: "", from: "", to: "", grade: "", status: "", source: "", sort: "new" };
+let openId = null, dirty = false, setDirty = false;
+let mode = null;            // 상세 패널: null(닫힘), detail(문의 상세), entry(등록·수정)
+
+/* ---------- 공통 ---------- */
+function toast(msg, isErr = false) {
+  const t = $("#toast");
+  t.textContent = msg; t.classList.toggle("err", isErr); t.classList.add("show");
+  clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove("show"), 2600);
+}
+const pad = n => String(n).padStart(2, "0");
+function fmtShort(d) {
+  if (!d) return "-";
+  const y = d.getFullYear() !== new Date().getFullYear() ? `${String(d.getFullYear()).slice(2)}.` : "";
+  return `${y}${pad(d.getMonth() + 1)}.${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+const fmtFull = d => d ? `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}` : "-";
+const ymd = d => `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}`;
+const digits = s => String(s || "").replace(/\D/g, "");
+const parseDay = (s, end) => { if (!s) return null; const [y, m, d] = s.split("-").map(Number); return end ? new Date(y, m - 1, d, 23, 59, 59, 999) : new Date(y, m - 1, d); };
+
+/* ---------- 화면 전환 ---------- */
+function showLogin(msg = "") {
+  $("#app").hidden = true; $("#login").hidden = false;
+  $("#loginMsg").textContent = msg;
+}
+function showApp(email) {
+  $("#login").hidden = true; $("#app").hidden = false;
+  $("#who").textContent = email;
+}
+
+/* ---------- Firebase ---------- */
+async function loadFirebase() {
+  const [appM, authM, fsM] = await Promise.all([
+    import(`${C.FIREBASE_SDK}/firebase-app.js`),
+    import(`${C.FIREBASE_SDK}/firebase-auth.js`),
+    import(`${C.FIREBASE_SDK}/firebase-firestore.js`)
+  ]);
+  const app = appM.initializeApp(C.firebaseConfig);
+  return { auth: authM.getAuth(app), db: fsM.getFirestore(app), A: authM, F: fsM };
+}
+
+async function init() {
+  try { fb = await loadFirebase(); }
+  catch (e) { showLogin("Firebase를 불러오지 못했습니다. 네트워크 연결을 확인한 뒤 새로고침하세요."); return; }
+
+  let pendingMsg = "";
+  fb.A.onAuthStateChanged(fb.auth, async u => {
+    if (!u) { stopSub(); user = null; showLogin(pendingMsg); pendingMsg = ""; return; }
+    try {
+      const a = await fb.F.getDoc(fb.F.doc(fb.db, "admins", u.uid));
+      if (!a.exists()) {
+        pendingMsg = `관리자로 등록되지 않은 계정입니다.\nFirestore의 admins 컬렉션에 아래 UID로 문서를 추가한 뒤 다시 로그인하세요.\nUID: ${u.uid}`;
+        await fb.A.signOut(fb.auth); return;
+      }
+    } catch (e) {
+      pendingMsg = `권한을 확인하지 못했습니다. 보안 규칙이 게시되었는지 확인하세요. (${e.code || e.message})`;
+      await fb.A.signOut(fb.auth); return;
+    }
+    user = u; showApp(u.email);
+    await loadSettings();
+    subscribe();
+  });
+}
+
+$("#loginForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  if (!fb) return;
+  const btn = $("#lBtn"); btn.disabled = true; $("#loginMsg").textContent = "";
+  try {
+    await fb.A.signInWithEmailAndPassword(fb.auth, $("#lEmail").value.trim(), $("#lPw").value);
+  } catch (err) {
+    const m = {
+      "auth/invalid-credential": "이메일 또는 비밀번호가 맞지 않습니다.",
+      "auth/wrong-password": "이메일 또는 비밀번호가 맞지 않습니다.",
+      "auth/user-not-found": "이메일 또는 비밀번호가 맞지 않습니다.",
+      "auth/invalid-email": "이메일 형식을 확인하세요.",
+      "auth/too-many-requests": "로그인 시도가 많아 잠시 막혔습니다. 몇 분 뒤 다시 시도하세요.",
+      "auth/operation-not-allowed": "Firebase 콘솔에서 이메일/비밀번호 로그인을 사용 설정하세요."
+    }[err.code];
+    $("#loginMsg").textContent = m || `로그인하지 못했습니다. (${err.code || err.message})`;
+  } finally { btn.disabled = false; }
+});
+
+$("#logout").addEventListener("click", async () => {
+  if (DEMO) { location.href = location.pathname; return; }
+  closeDrawer(true);
+  await fb.A.signOut(fb.auth);
+});
+
+async function loadSettings() {
+  try {
+    const s = await fb.F.getDoc(fb.F.doc(fb.db, "settings", "grading"));
+    CFG = C.mergeGrading(s.exists() ? s.data() : {});
+  } catch (e) {
+    CFG = C.mergeGrading();
+    toast("등급 기준을 불러오지 못해 기본값으로 계산합니다.", true);
+  }
+}
+
+function subscribe() {
+  stopSub();
+  const q = fb.F.query(fb.F.collection(fb.db, "inquiries"), fb.F.orderBy("createdAt", "desc"));
+  unsub = fb.F.onSnapshot(q,
+    snap => { ALL = snap.docs.map(d => ({ id: d.id, ...d.data() })); refresh(); },
+    err => toast(`문의 목록을 불러오지 못했습니다. (${err.code})`, true));
+}
+function stopSub() { if (unsub) { unsub(); unsub = null; } }
+
+/* ---------- 데이터 가공 ---------- */
+function enrich(list, cfg) {
+  const cnt = {};
+  list.forEach(r => { const p = digits(r.phone); if (p) cnt[p] = (cnt[p] || 0) + 1; });
+  list.forEach(r => {
+    r._g = C.computeGrade(r, cfg);
+    r._final = ["A", "B", "C"].includes(r.gradeOverride) ? r.gradeOverride : r._g.grade;
+    r._dup = cnt[digits(r.phone)] || 1;
+    r._date = C.toDate(r.createdAt);
+    r._status = C.STATUS.some(x => x.v === r.status) ? r.status : "new";
+  });
+}
+
+function baseFilter(list) {
+  const from = parseDay(filt.from), to = parseDay(filt.to, true);
+  const q = filt.q.trim().toLowerCase(), qd = digits(q);
+  return list.filter(r => {
+    if (from && (!r._date || r._date < from)) return false;
+    if (to && (!r._date || r._date > to)) return false;
+    if (filt.source && (r.source || "mail") !== filt.source) return false;
+    if (q) {
+      const hay = [r.name, r.email, ...(r.regions || []).map(C.regionLabel)].join(" ").toLowerCase();
+      if (!hay.includes(q) && !(qd.length >= 3 && digits(r.phone).includes(qd))) return false;
+    }
+    return true;
+  });
+}
+
+function refresh() {
+  enrich(ALL, CFG);
+  const base = baseFilter(ALL);
+  renderKpis(base);
+  VIEW = base.filter(r => (!filt.grade || r._final === filt.grade) && (!filt.status || r._status === filt.status));
+  VIEW.sort(filt.sort === "score"
+    ? (a, b) => b._g.total - a._g.total || (b._date || 0) - (a._date || 0)
+    : (a, b) => (b._date || 0) - (a._date || 0));
+  renderTable();
+  if (mode === "detail" && openId && !dirty) renderDrawer(openId);
+  updatePreview();
+}
+
+/* ---------- 목록 ---------- */
+function renderKpis(base) {
+  const n = k => base.filter(r => r._final === k).length;
+  const items = [
+    { k: "all", t: "전체", v: base.length },
+    { k: "A", t: "A 우선 상담", v: n("A") },
+    { k: "B", t: "B 상담", v: n("B") },
+    { k: "C", t: "C 보류", v: n("C") },
+    { k: "new", t: "미확인", v: base.filter(r => r._status === "new").length }
+  ];
+  const active = filt.status === "new" && !filt.grade ? "new" : filt.grade || (!filt.status ? "all" : "");
+  $("#kpis").innerHTML = items.map(i =>
+    `<button type="button" class="kpi${i.k === active ? " on" : ""}" data-k="${i.k}"><span class="k">${i.t}</span><span class="v">${i.v}</span></button>`).join("");
+}
+$("#kpis").addEventListener("click", e => {
+  const b = e.target.closest(".kpi"); if (!b) return;
+  const k = b.dataset.k;
+  filt.grade = ["A", "B", "C"].includes(k) ? k : "";
+  filt.status = k === "new" ? "new" : "";
+  $("#fGrade").value = filt.grade; $("#fStatus").value = filt.status;
+  refresh();
+});
+
+function statusCell(s) { return `<span class="st ${s}">${esc(C.label(C.STATUS, s))}</span>`; }
+
+function renderTable() {
+  const body = $("#rows");
+  body.innerHTML = VIEW.map(r => {
+    const regs = r.regions || [];
+    const reg = regs.length ? C.regionLabel(regs[0]) + (regs.length > 1 ? ` 외 ${regs.length - 1}곳` : "") : "-";
+    return `<tr data-id="${esc(r.id)}" tabindex="0" class="${r.id === openId ? "sel" : ""}">
+      <td>${fmtShort(r._date)}</td>
+      <td class="who">${esc(r.name)}${r._dup > 1 ? `<span class="tag" title="같은 연락처로 ${r._dup}건 접수">중복 ${r._dup}</span>` : ""}</td>
+      <td>${esc(r.phone)}</td>
+      <td class="region" title="${esc(regs.map(C.regionLabel).join(", "))}">${esc(reg)}</td>
+      <td class="r">${esc(C.manToShort(r.investment))}</td>
+      <td class="r">${r._g.total}</td>
+      <td class="c"><span class="badge ${r._final}">${r._final}</span>${r.gradeOverride ? `<span class="adj" title="자동 등급 ${r._g.grade}에서 조정">조정</span>` : ""}</td>
+      <td>${statusCell(r._status)}</td>
+      <td>${esc(C.label(C.SOURCE, r.source || "mail"))}${r.entry === "manual" ? `<span class="muted"> (수기)</span>` : ""}</td>
+    </tr>`;
+  }).join("");
+  $("#count").textContent = `${VIEW.length}건${VIEW.length !== ALL.length ? ` / 전체 ${ALL.length}건` : ""}`;
+  const empty = $("#empty");
+  empty.hidden = VIEW.length > 0;
+  empty.textContent = ALL.length ? "조건에 맞는 문의가 없습니다. 검색어나 필터를 바꿔 보세요."
+    : "아직 접수된 문의가 없습니다. ‘메일용 접수폼 링크 복사’로 접수폼 링크를 안내 메일에 넣어 보내세요.";
+}
+$("#rows").addEventListener("click", e => { const tr = e.target.closest("tr[data-id]"); if (tr) openDrawer(tr.dataset.id); });
+$("#rows").addEventListener("keydown", e => {
+  if (e.key !== "Enter") return;
+  const tr = e.target.closest("tr[data-id]"); if (tr) openDrawer(tr.dataset.id);
+});
+
+/* 필터 */
+$("#fStatus").innerHTML = `<option value="">처리 상태 전체</option>` + C.STATUS.map(s => `<option value="${s.v}">${esc(s.t)}</option>`).join("");
+$("#fSource").innerHTML = `<option value="">유입 전체</option>` + C.SOURCE.map(s => `<option value="${s.v}">${esc(s.t)}</option>`).join("");
+const filterMap = { fQ: "q", fFrom: "from", fTo: "to", fGrade: "grade", fStatus: "status", fSource: "source", fSort: "sort" };
+Object.entries(filterMap).forEach(([id, k]) => {
+  $("#" + id).addEventListener(id === "fQ" ? "input" : "change", e => { filt[k] = e.target.value; refresh(); });
+});
+
+/* 링크 복사 */
+async function copy(text, msg) {
+  try { await navigator.clipboard.writeText(text); toast(msg); }
+  catch { window.prompt("아래 링크를 복사하세요.", text); }
+}
+$("#copyMail").addEventListener("click", () => copy(new URL("./", location.href).href, "메일용 접수폼 링크를 복사했습니다."));
+$("#copyHp").addEventListener("click", () => copy(new URL("./?src=homepage", location.href).href, "홈페이지용 접수폼 링크를 복사했습니다."));
+
+/* 엑셀 */
+$("#exportBtn").addEventListener("click", () => {
+  if (!window.XLSX) { toast("엑셀 라이브러리를 불러오지 못했습니다. 새로고침 후 다시 시도하세요.", true); return; }
+  if (!VIEW.length) { toast("내보낼 문의가 없습니다.", true); return; }
+  const reg = (r, i) => r.regions?.[i] ? C.regionLabel(r.regions[i]) : "";
+  const rows = VIEW.map(r => ({
+    "접수일시": fmtFull(r._date), "유입": C.label(C.SOURCE, r.source || "mail"),
+    "성함": r.name, "연락처": r.phone, "이메일": r.email, "연령대": C.label(C.AGE, r.ageBand),
+    "희망지역1": reg(r, 0), "희망지역2": reg(r, 1), "희망지역3": reg(r, 2),
+    "투자가능금액(만원)": Number(r.investment) || 0,
+    "외식업 경험": C.label(C.FNB, r.fnbExp), "경험 상세": r.fnbDetail || "",
+    "지원 사유": r.motive || "", "희망 오픈 시기": C.label(C.OPEN, r.openTiming),
+    "운영 참여": C.label(C.OPER, r.operation), "운영 참여 상세": r.operationNote || "",
+    "점포 확보": C.label(C.STORE, r.store), "점포 소재지": r.storeAddress || "", "점포 면적(평)": r.storeArea || "",
+    "기타 문의": r.etc || "",
+    "점수": r._g.total, "자동 등급": r._g.grade, "최종 등급": r._final,
+    "처리 상태": C.label(C.STATUS, r._status), "메모": r.memo || "",
+    "등록 방식": r.entry === "manual" ? "수기 등록(메일)" : "접수폼", "오픈 시기 원문": r.openTimingNote || "",
+    "개인정보 동의 체크": r.consent ? "Y" : "N"
+  }));
+  const ws = XLSX.utils.json_to_sheet(rows);
+  ws["!cols"] = Object.keys(rows[0]).map(k => ({ wch: ["지원 사유", "기타 문의", "메모", "경험 상세"].includes(k) ? 40 : Math.max(10, k.length * 2 + 2) }));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "가맹문의");
+  XLSX.writeFile(wb, `벤슨_가맹문의DB_${ymd(new Date())}.xlsx`);
+});
+
+/* ---------- 상세 ---------- */
+function markSel() { $$("#rows tr").forEach(tr => tr.classList.toggle("sel", !!openId && tr.dataset.id === openId)); }
+function showDrawer(wide) {
+  $("#drawer").classList.toggle("wide", wide);
+  $("#drawer").hidden = false; $("#scrim").hidden = false;
+  $("#dBody").scrollTop = 0;
+}
+function openDrawer(id) {
+  if (mode && dirty && !(mode === "detail" && openId === id) && !confirm("저장하지 않은 변경 내용이 있습니다. 이동할까요?")) return;
+  mode = "detail"; openId = id; dirty = false;
+  $("#dFoot").hidden = true;
+  renderDrawer(id);
+  showDrawer(false);
+  markSel();
+  $("#dClose").focus();
+}
+function closeDrawer(force = false) {
+  if (!mode) return;
+  if (!force && dirty && !confirm("저장하지 않은 변경 내용이 있습니다. 닫을까요?")) return;
+  const id = openId;
+  mode = null; openId = null; dirty = false;
+  $("#drawer").hidden = true; $("#scrim").hidden = true;
+  markSel();
+  const tr = id && $(`#rows tr[data-id="${CSS.escape(id)}"]`); if (tr) tr.focus();
+}
+$("#dClose").addEventListener("click", () => closeDrawer());
+$("#scrim").addEventListener("click", () => closeDrawer());
+document.addEventListener("keydown", e => { if (e.key === "Escape" && mode) closeDrawer(); });
+
+function renderDrawer(id) {
+  const r = ALL.find(x => x.id === id);
+  if (!r) { closeDrawer(true); return; }
+  const g = r._g;
+  $("#dTitle").innerHTML = `${esc(r.name)} <span class="badge ${r._final}">${r._final}</span>`;
+  $("#dSub").textContent = `${fmtFull(r._date)} 접수, ${C.label(C.SOURCE, r.source || "mail")} 유입${r.entry === "manual" ? " (수기 등록)" : ""}`;
+
+  const scoreRows = g.items.map(it => `<tr>
+      <td><b>${esc(it.label)}</b><div class="note">${esc(it.note)}</div>
+        <div class="meter"><i style="width:${it.max ? Math.round(it.score / it.max * 100) : 0}%"></i></div></td>
+      <td class="pt">${it.score}<small> / ${it.max}</small></td></tr>`).join("");
+
+  const ans = [
+    ["연락처", `<a href="tel:${digits(r.phone)}">${esc(r.phone)}</a>${r.email ? `\n<a href="mailto:${esc(r.email)}">${esc(r.email)}</a>` : ""}`],
+    ["연령대", esc(C.label(C.AGE, r.ageBand))],
+    ["희망 지역", (r.regions || []).map((x, i) => `${i + 1}. ${esc(C.regionLabel(x))}`).join("\n") || "-"],
+    ["투자 가능 금액", esc(C.manToText(r.investment))],
+    ["외식업 경험", esc(C.label(C.FNB, r.fnbExp)) + (r.fnbDetail ? `\n<span class="sub">${esc(r.fnbDetail)}</span>` : "")],
+    ["지원 사유", esc(r.motive) || "-"],
+    ["희망 오픈 시기", esc(C.label(C.OPEN, r.openTiming)) + (r.openTimingNote ? `\n<span class="sub">원문: ${esc(r.openTimingNote)}</span>` : "")],
+    ["운영 참여 계획", esc(C.label(C.OPER, r.operation)) + (r.operationNote ? ` (${esc(r.operationNote)})` : "")],
+    ["점포 확보", esc(C.label(C.STORE, r.store)) + (r.storeAddress ? `\n<span class="sub">${esc(r.storeAddress)}${r.storeArea ? `, ${esc(r.storeArea)}평` : ""}</span>` : "")],
+    ["기타 문의", esc(r.etc) || "-"],
+    ["개인정보 동의", r.consent ? "동의 (접수폼)" : r.entry === "manual" ? "동의 체크 없음 (메일 접수)" : "-"]
+  ].map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("");
+
+  const reviewed = C.toDate(r.reviewedAt);
+  const meta = [
+    reviewed ? `최근 저장 ${fmtFull(reviewed)}${r.reviewedBy ? `, ${esc(r.reviewedBy)}` : ""}` : "",
+    r.gradeAtReview && r.gradeAtReview !== r._final ? `처리 당시 등급 ${esc(r.gradeAtReview)} (${Number(r.scoreAtReview) || 0}점)` : ""
+  ].filter(Boolean).join(" · ");
+
+  $("#dBody").innerHTML = `
+    <section class="d-sec">
+      <h3>점수 산정</h3>
+      ${g.mustFail ? `<p class="warn">투자 가능 금액이 필수 기준(${esc(C.manToText(CFG.minInvest))}) 미만이라 점수와 관계없이 C로 분류됩니다.</p>` : ""}
+      <table class="score-tbl">${scoreRows}</table>
+      <div class="score-sum"><span>합계 <b>${g.total}</b> <span class="muted">/ ${g.maxTotal}점</span></span>
+        <span>자동 등급 <span class="badge ${g.grade}">${g.grade}</span></span></div>
+    </section>
+    <section class="d-sec">
+      <div class="h3row"><h3>응답 내용</h3><button type="button" class="btn small" id="mEdit">응답 수정</button></div>
+      <dl class="ans">${ans}</dl>
+    </section>
+    ${r.rawText ? `<section class="d-sec raw-view"><details><summary>메일 원문 보기</summary><pre>${esc(r.rawText)}</pre></details></section>` : ""}
+    <section class="d-sec">
+      <h3>검토</h3>
+      <div class="manage">
+        <label>등급<select id="mGrade">
+          <option value="">자동 (${g.grade})</option><option value="A">A로 조정</option><option value="B">B로 조정</option><option value="C">C로 조정</option>
+        </select></label>
+        <label>처리 상태<select id="mStatus">${C.STATUS.map(s => `<option value="${s.v}">${esc(s.t)}</option>`).join("")}</select></label>
+        <label class="full">메모<textarea id="mMemo" maxlength="2000" placeholder="통화 내용, 다음 연락 예정일 등"></textarea></label>
+        <div class="m-actions">
+          <button type="button" class="btn danger" id="mDel">문의 삭제</button>
+          <button type="button" class="btn primary" id="mSave">저장</button>
+        </div>
+        ${meta ? `<p class="m-meta">${meta}</p>` : ""}
+      </div>
+    </section>`;
+
+  $("#mGrade").value = r.gradeOverride || "";
+  $("#mStatus").value = r._status;
+  $("#mMemo").value = r.memo || "";
+  ["mGrade", "mStatus", "mMemo"].forEach(i => $("#" + i).addEventListener("input", () => { dirty = true; }));
+  $("#mSave").addEventListener("click", () => saveReview(r.id));
+  $("#mDel").addEventListener("click", () => removeInquiry(r.id));
+  $("#mEdit").addEventListener("click", () => openEntry(r));
+}
+
+async function saveReview(id) {
+  const r = ALL.find(x => x.id === id); if (!r) return;
+  const ov = $("#mGrade").value || null;
+  const status = $("#mStatus").value;
+  const payload = { gradeOverride: ov, status, memo: $("#mMemo").value.trim().slice(0, 2000), reviewedBy: DEMO ? "demo" : user.email };
+  if (status !== "new") { payload.gradeAtReview = ov || r._g.grade; payload.scoreAtReview = r._g.total; }
+  const btn = $("#mSave"); btn.disabled = true;
+  dirty = false;
+  try {
+    if (DEMO) Object.assign(r, payload, { reviewedAt: new Date() });
+    else await fb.F.updateDoc(fb.F.doc(fb.db, "inquiries", id), { ...payload, reviewedAt: fb.F.serverTimestamp() });
+    refresh();
+    toast("저장했습니다.");
+  } catch (e) {
+    dirty = true;
+    toast(`저장하지 못했습니다. (${e.code || e.message})`, true);
+    btn.disabled = false;
+  }
+}
+
+async function removeInquiry(id) {
+  const r = ALL.find(x => x.id === id); if (!r) return;
+  if (!confirm(`${r.name} 님의 문의를 삭제할까요? 삭제하면 되돌릴 수 없습니다.`)) return;
+  try {
+    if (DEMO) { ALL = ALL.filter(x => x.id !== id); closeDrawer(true); refresh(); }
+    else { await fb.F.deleteDoc(fb.F.doc(fb.db, "inquiries", id)); closeDrawer(true); }
+    toast("삭제했습니다.");
+  } catch (e) { toast(`삭제하지 못했습니다. (${e.code || e.message})`, true); }
+}
+
+/* ---------- 메일 문의 등록 · 응답 수정 ---------- */
+const sidoOpts = Object.keys(C.REGIONS).map(s => `<option>${s}</option>`).join("");
+const selOpts = list => `<option value="">선택</option>` + list.map(o => `<option value="${o.v}">${esc(o.t)}</option>`).join("");
+const toInputDate = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+function entryDate(s) {
+  const [y, m, d] = s.split("-").map(Number), now = new Date();
+  return (y === now.getFullYear() && m === now.getMonth() + 1 && d === now.getDate()) ? now : new Date(y, m - 1, d, 12, 0, 0);
+}
+
+function eRegionRow(r = {}) {
+  const row = document.createElement("div");
+  row.className = "e-region";
+  row.innerHTML = `<select class="sido" aria-label="시·도"><option value="">시·도</option>${sidoOpts}</select>
+    <select class="sigungu" aria-label="시·군·구"></select>
+    <input class="area" maxlength="60" placeholder="상권 (선택)" aria-label="상권">
+    <button type="button" class="btn small rm">삭제</button>`;
+  const sido = $(".sido", row), sg = $(".sigungu", row), area = $(".area", row);
+  const fillSg = () => {
+    const list = C.REGIONS[sido.value] || [];
+    sg.innerHTML = `<option value="">시·군·구</option>` + list.map(x => `<option>${x}</option>`).join("")
+      + (sido.value ? `<option value="__etc">목록에 없음</option>` : "");
+    sg.disabled = !sido.value;
+  };
+  sido.value = r.sido || ""; fillSg();
+  area.value = r.area || "";
+  if (r.sido) {
+    sg.value = r.sigungu || "__etc";
+    if (r.sigungu && sg.value !== r.sigungu) { sg.value = "__etc"; area.value = `${r.sigungu} ${area.value}`.trim(); }
+  }
+  sido.addEventListener("change", fillSg);
+  $(".rm", row).addEventListener("click", () => { row.remove(); syncRegionBtns(); dirty = true; updateEntryPreview(); });
+  return row;
+}
+function syncRegionBtns() {
+  const rows = $$("#eRegions .e-region");
+  rows.forEach(r => { $(".rm", r).hidden = rows.length === 1; });
+  $("#eAddRegion").hidden = rows.length >= 3;
+}
+const readERegions = () => $$("#eRegions .e-region").map(r => {
+  const sg = $(".sigungu", r).value;
+  return { sido: $(".sido", r).value, sigungu: sg === "__etc" ? "" : sg, area: $(".area", r).value.trim().slice(0, 60) };
+}).filter(r => r.sido);
+
+function openEntry(rec = null) {
+  if (mode && dirty && !confirm("저장하지 않은 변경 내용이 있습니다. 이동할까요?")) return;
+  mode = "entry"; openId = rec ? rec.id : null; dirty = false;
+  $("#dTitle").textContent = rec ? `응답 수정: ${rec.name}` : "메일 문의 등록";
+  $("#dSub").textContent = rec ? "저장하면 자동 등급이 수정한 응답으로 다시 계산됩니다." : "안내 메일로 회신받은 문의를 DB에 등록합니다.";
+  $("#dBody").innerHTML = `
+    ${rec ? "" : `<section class="d-sec">
+      <h3>메일 회신 내용</h3>
+      <textarea class="raw" id="eRaw" placeholder="회신 메일의 1~10번 답변 부분을 그대로 붙여넣으세요."></textarea>
+      <div class="e-row"><button type="button" class="btn" id="eParse">내용 자동 채우기</button><span class="muted" id="eParseMsg"></span></div>
+      <ul class="e-info" id="eInfo" hidden></ul>
+      <ul class="e-warn" id="eWarn" hidden></ul>
+    </section>`}
+    <section class="d-sec">
+      <h3>응답 내용${rec ? "" : `<span class="muted">자동으로 채운 값을 확인하고 고쳐 주세요</span>`}</h3>
+      <div class="eg">
+        <label>성함<input id="eName" maxlength="30"></label>
+        <label>연락처<input id="ePhone" maxlength="13" inputmode="numeric"></label>
+        <label><span>이메일 <span class="opt">선택</span></span><input id="eEmail" type="email" maxlength="120"></label>
+        <label>접수일<input id="eDate" type="date"></label>
+        <label>연령대<select id="eAge">${selOpts(C.AGE)}</select></label>
+        <label>총 투자 가능 금액 (만원)<input id="eInv" inputmode="numeric" maxlength="9"><small id="eInvRead"></small></label>
+        <div class="grp full"><span>희망 지역 <span class="opt">최대 3곳</span></span>
+          <div id="eRegions"></div>
+          <div><button type="button" class="btn small" id="eAddRegion">지역 추가</button></div>
+        </div>
+        <label>외식업 경험<select id="eFnb">${selOpts(C.FNB)}</select></label>
+        <label>경험 상세<textarea id="eFnbDetail" maxlength="1000" rows="2" style="min-height:38px"></textarea></label>
+        <label class="full">지원 사유<textarea id="eMotive" maxlength="2000" rows="4"></textarea></label>
+        <label>희망 오픈 시기<select id="eOpen">${selOpts(C.OPEN)}</select></label>
+        <label><span>오픈 시기 원문 <span class="opt">선택</span></span><input id="eOpenNote" maxlength="100"></label>
+        <label>운영 참여 계획<select id="eOper">${selOpts(C.OPER)}</select></label>
+        <label><span>운영 참여 상세 <span class="opt">선택</span></span><input id="eOperNote" maxlength="200"></label>
+        <label>점포 확보<select id="eStore">${selOpts(C.STORE)}</select></label>
+        <label><span>점포 면적(평) <span class="opt">선택</span></span><input id="eStoreArea" maxlength="20"></label>
+        <label class="full"><span>점포 소재지 <span class="opt">선택</span></span><input id="eStoreAddr" maxlength="200"></label>
+        <label class="full">기타 문의<textarea id="eEtc" maxlength="2000" rows="3"></textarea></label>
+      </div>
+    </section>`;
+  $("#dFoot").innerHTML = `<div class="e-prev" id="ePrev"></div>
+    <div class="acts"><button type="button" class="btn" id="eCancel">취소</button>
+      <button type="button" class="btn primary" id="eSave">${rec ? "수정 저장" : "등록"}</button></div>
+    <p class="e-err" id="eErr" role="alert"></p>`;
+  $("#dFoot").hidden = false;
+
+  fillEntry(rec || {});
+  $("#eDate").value = toInputDate((rec && C.toDate(rec.createdAt)) || new Date());
+  $("#eAddRegion").addEventListener("click", () => {
+    $("#eRegions").appendChild(eRegionRow()); syncRegionBtns(); dirty = true;
+  });
+  $("#ePhone").addEventListener("input", e => { e.target.value = P.fmtPhone(e.target.value); });
+  $("#eInv").addEventListener("input", e => {
+    const d = e.target.value.replace(/\D/g, "").replace(/^0+/, "").slice(0, 7);
+    e.target.value = d ? Number(d).toLocaleString("ko-KR") : "";
+  });
+  $("#eCancel").addEventListener("click", () => {
+    if (rec) { if (!dirty || confirm("수정한 내용을 버릴까요?")) { dirty = false; openDrawer(rec.id); } }
+    else closeDrawer();
+  });
+  $("#eSave").addEventListener("click", saveEntry);
+  if (!rec) $("#eParse").addEventListener("click", runParse);
+
+  showDrawer(true);
+  markSel();
+  (rec ? $("#eName") : $("#eRaw")).focus();
+}
+
+function fillEntry(d) {
+  const set = (id, v) => { $("#" + id).value = v ?? ""; };
+  set("eName", d.name); set("ePhone", d.phone); set("eEmail", d.email); set("eAge", d.ageBand);
+  set("eInv", d.investment ? Number(d.investment).toLocaleString("ko-KR") : "");
+  set("eFnb", d.fnbExp); set("eFnbDetail", d.fnbDetail); set("eMotive", d.motive);
+  set("eOpen", d.openTiming); set("eOpenNote", d.openTimingNote);
+  set("eOper", d.operation); set("eOperNote", d.operationNote);
+  set("eStore", d.store); set("eStoreAddr", d.storeAddress); set("eStoreArea", d.storeArea);
+  set("eEtc", d.etc);
+  const box = $("#eRegions"); box.innerHTML = "";
+  (d.regions && d.regions.length ? d.regions : [{}]).slice(0, 3).forEach(r => box.appendChild(eRegionRow(r)));
+  syncRegionBtns();
+  updateEntryPreview();
+}
+
+function runParse() {
+  const raw = $("#eRaw").value;
+  if (!raw.trim()) { $("#eParseMsg").textContent = "붙여넣은 내용이 없습니다."; return; }
+  const res = P.parseMail(raw);
+  fillEntry(res.data);
+  dirty = true;
+  $("#eParseMsg").textContent = `10개 질문 중 ${res.found}개를 읽었습니다.`;
+  const info = [];
+  if (res.data.investment) info.push(`투자 가능 금액: ${C.manToText(res.data.investment)}으로 읽었습니다.`);
+  if (res.data.openTiming && res.data.openTimingNote)
+    info.push(`오픈 시기: '${res.data.openTimingNote}' → ${C.label(C.OPEN, res.data.openTiming)} (기간의 중간 시점 기준)`);
+  $("#eInfo").innerHTML = info.map(x => `<li>${esc(x)}</li>`).join(""); $("#eInfo").hidden = !info.length;
+  $("#eWarn").innerHTML = res.warnings.map(x => `<li>${esc(x)}</li>`).join(""); $("#eWarn").hidden = !res.warnings.length;
+}
+
+function readEntry() {
+  const v = id => $("#" + id).value.trim();
+  const d = {
+    name: v("eName"), phone: P.fmtPhone(v("ePhone")), email: v("eEmail"), ageBand: v("eAge"),
+    regions: readERegions(), investment: Number(v("eInv").replace(/\D/g, "")) || 0,
+    fnbExp: v("eFnb"), fnbDetail: v("eFnbDetail").slice(0, 1000), motive: v("eMotive").slice(0, 2000),
+    openTiming: v("eOpen"), openTimingNote: v("eOpenNote").slice(0, 100),
+    operation: v("eOper"), operationNote: v("eOperNote").slice(0, 200),
+    store: v("eStore"), storeAddress: v("eStoreAddr").slice(0, 200), storeArea: v("eStoreArea").slice(0, 20),
+    etc: v("eEtc").slice(0, 2000)
+  };
+  const errs = [];
+  if (!d.name) errs.push("성함");
+  const pd = digits(d.phone); if (pd.length < 9 || pd.length > 11) errs.push("연락처");
+  if (d.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(d.email)) errs.push("이메일 형식");
+  if (!v("eDate")) errs.push("접수일");
+  if (!d.ageBand) errs.push("연령대");
+  if (!d.regions.length) errs.push("희망 지역");
+  if (!d.investment) errs.push("투자 가능 금액");
+  if (!d.fnbExp) errs.push("외식업 경험");
+  if (!d.openTiming) errs.push("오픈 시기");
+  if (!d.operation) errs.push("운영 참여 계획");
+  if (!d.store) errs.push("점포 확보");
+  return { d, errs };
+}
+
+function updateEntryPreview() {
+  if (mode !== "entry" || !$("#ePrev")) return;
+  const { d } = readEntry();
+  $("#eInvRead").textContent = d.investment ? C.manToText(d.investment) : "";
+  const g = C.computeGrade(d, CFG);
+  $("#ePrev").innerHTML = `예상 점수 <b>${g.total}</b><span class="muted">/ ${g.maxTotal}</span>
+    <span class="badge ${g.grade}">${g.grade}</span>
+    <span class="muted">${g.items.map(i => `${esc(i.label)} ${i.score}`).join(", ")}</span>
+    ${g.mustFail ? `<span class="warn-inline">필수 금액 미달</span>` : ""}`;
+}
+$("#dBody").addEventListener("input", () => { if (mode === "entry") { dirty = true; updateEntryPreview(); } });
+$("#dBody").addEventListener("change", () => { if (mode === "entry") { dirty = true; updateEntryPreview(); } });
+
+async function saveEntry() {
+  const { d, errs } = readEntry();
+  if (errs.length) { $("#eErr").textContent = `확인할 항목: ${errs.join(", ")}`; return; }
+  $("#eErr").textContent = "";
+  const date = entryDate($("#eDate").value);
+  const by = DEMO ? "demo" : user.email;
+  const btn = $("#eSave"); btn.disabled = true;
+  try {
+    if (openId) {
+      const id = openId, r = ALL.find(x => x.id === id);
+      const changedDate = !r._date || ymd(r._date) !== ymd(date);
+      if (DEMO) Object.assign(r, d, { editedBy: by, editedAt: new Date() }, changedDate ? { createdAt: date } : {});
+      else await fb.F.updateDoc(fb.F.doc(fb.db, "inquiries", id), {
+        ...d, editedBy: by, editedAt: fb.F.serverTimestamp(),
+        ...(changedDate ? { createdAt: fb.F.Timestamp.fromDate(date) } : {})
+      });
+      dirty = false; refresh(); openDrawer(id);
+      toast("응답을 수정했습니다.");
+    } else {
+      const base = { ...d, consent: false, source: "mail", entry: "manual", rawText: ($("#eRaw")?.value || "").slice(0, 20000),
+        enteredBy: by, formVersion: C.FORM_VERSION, status: "new" };
+      let id;
+      if (DEMO) { id = "m" + Date.now(); ALL.push({ id, ...base, createdAt: date, enteredAt: new Date() }); }
+      else {
+        const ref = await fb.F.addDoc(fb.F.collection(fb.db, "inquiries"),
+          { ...base, createdAt: fb.F.Timestamp.fromDate(date), enteredAt: fb.F.serverTimestamp() });
+        id = ref.id;
+      }
+      dirty = false; refresh();
+      if (ALL.some(x => x.id === id)) openDrawer(id); else closeDrawer(true);
+      toast("메일 문의를 등록했습니다.");
+    }
+  } catch (e) {
+    btn.disabled = false;
+    $("#eErr").textContent = `저장하지 못했습니다. (${e.code || e.message})`;
+  }
+}
+$("#newEntry").addEventListener("click", () => openEntry());
+
+/* ---------- 등급 기준 ---------- */
+function optRows(el, key, list) {
+  el.innerHTML = list.map(o => `<div class="srow"><span>${esc(o.t)}</span>
+    <span class="num"><input type="number" min="0" max="100" data-k="${key}.${o.v}"> 점</span></div>`).join("");
+}
+optRows($("#setFnb"), "fnb", C.FNB);
+optRows($("#setOper"), "oper", C.OPER);
+optRows($("#setStore"), "store", C.STORE);
+optRows($("#setOpen"), "open", C.OPEN);
+
+function renderTiers(tiers) {
+  $("#tierRows").innerHTML = tiers.map(t => `<div class="srow tier">
+      <span class="num"><input type="number" min="0" step="500" class="t-min" value="${Number(t.min) || 0}"> 만원 이상이면</span>
+      <span class="num"><input type="number" min="0" max="100" class="t-score" value="${Number(t.score) || 0}"> 점</span>
+      <button type="button" class="btn small t-rm">삭제</button></div>`).join("")
+    || `<p class="muted" style="margin:6px 0">구간이 없으면 투자 여력 점수는 모두 0점입니다.</p>`;
+}
+const readTiers = () => $$("#tierRows .tier").map(r => ({ min: Number($(".t-min", r).value) || 0, score: Number($(".t-score", r).value) || 0 }));
+
+const getP = (o, p) => p.split(".").reduce((a, k) => a?.[k], o);
+function setP(o, p, v) { const ks = p.split("."); let a = o; ks.slice(0, -1).forEach(k => { a = a[k] ??= {}; }); a[ks.at(-1)] = v; }
+
+function fillSettings(cfg) {
+  $$("#tab-settings [data-k]").forEach(el => {
+    const k = el.dataset.k;
+    el.value = k.startsWith("kw.") ? (cfg.regionKeywords[k.slice(3)] || []).join(", ") : (getP(cfg, k) ?? "");
+  });
+  renderTiers(cfg.investTiers);
+  setDirty = false;
+  updatePreview();
+}
+function readSettings() {
+  const raw = { regionKeywords: {} };
+  $$("#tab-settings [data-k]").forEach(el => {
+    const k = el.dataset.k;
+    if (k.startsWith("kw.")) raw.regionKeywords[k.slice(3)] = C.parseKeywords(el.value);
+    else setP(raw, k, el.value === "" ? null : Number(el.value));
+  });
+  raw.investTiers = readTiers();
+  return C.mergeGrading(raw);
+}
+function updatePreview() {
+  if ($("#tab-settings").hidden) return;
+  const cfg = readSettings();
+  const now = { A: 0, B: 0, C: 0 }, next = { A: 0, B: 0, C: 0 };
+  ALL.forEach(r => { now[r._final]++; next[r.gradeOverride || C.computeGrade(r, cfg).grade]++; });
+  $("#setPreview").innerHTML = `최고 점수 <b>${C.maxScore(cfg)}</b>점. 이 기준이면 A ${next.A}건, B ${next.B}건, C ${next.C}건
+    <span class="muted">(현재 A ${now.A}, B ${now.B}, C ${now.C})</span>`;
+}
+
+const setTab = $("#tab-settings");
+setTab.addEventListener("input", () => { setDirty = true; updatePreview(); });
+$("#tierRows").addEventListener("click", e => {
+  const b = e.target.closest(".t-rm"); if (!b) return;
+  b.closest(".tier").remove();
+  renderTiers(readTiers()); setDirty = true; updatePreview();
+});
+$("#addTier").addEventListener("click", () => { renderTiers([...readTiers(), { min: 0, score: 0 }]); setDirty = true; updatePreview(); });
+$("#setReset").addEventListener("click", () => {
+  const keepKw = readSettings().regionKeywords;
+  fillSettings({ ...C.mergeGrading(), regionKeywords: keepKw });
+  setDirty = true;
+  toast("기본 점수를 불러왔습니다. 상권 키워드는 유지했습니다. 저장해야 적용됩니다.");
+});
+$("#setSave").addEventListener("click", async () => {
+  const cfg = readSettings();
+  if (cfg.cut.A <= cfg.cut.B) { toast("A 기준 점수는 B 기준보다 높아야 합니다.", true); return; }
+  const btn = $("#setSave"); btn.disabled = true;
+  try {
+    if (!DEMO) await fb.F.setDoc(fb.F.doc(fb.db, "settings", "grading"),
+      { ...cfg, updatedAt: fb.F.serverTimestamp(), updatedBy: user.email });
+    CFG = cfg; setDirty = false; refresh();
+    toast("등급 기준을 저장했습니다. 모든 문의를 새 기준으로 다시 분류했습니다.");
+  } catch (e) { toast(`저장하지 못했습니다. (${e.code || e.message})`, true); }
+  finally { btn.disabled = false; }
+});
+
+$$(".tabs button").forEach(b => b.addEventListener("click", () => switchTab(b.dataset.tab)));
+function switchTab(t) {
+  if (t === "list" && setDirty && !confirm("저장하지 않은 기준 변경이 있습니다. 목록으로 이동할까요? (변경 내용은 이 화면에 남아 있습니다)")) return;
+  $$(".tabs button").forEach(b => b.classList.toggle("on", b.dataset.tab === t));
+  $("#tab-list").hidden = t !== "list";
+  $("#tab-settings").hidden = t !== "settings";
+  if (t === "settings" && !setDirty) fillSettings(CFG);
+  else updatePreview();
+}
+
+/* ---------- 데모 ---------- */
+function demoData() {
+  const at = (days, h, m = 12) => { const t = new Date(); t.setDate(t.getDate() - days); t.setHours(h, m, 0, 0); return t; };
+  return [
+    { id: "d1", name: "김지훈", phone: "010-2345-6789", email: "jihoon@example.com", ageBand: "40",
+      regions: [{ sido: "경기", sigungu: "성남시 분당구", area: "서현역 상권" }], investment: 26000,
+      fnbExp: "owner", fnbDetail: "커피 전문점 2개점 운영 5년", motive: "디저트 카페 운영 경험을 살려 아이스크림 전문점을 하고 싶습니다.",
+      openTiming: "m6", operation: "self", operationNote: "", store: "reviewing", storeAddress: "성남시 분당구 서현동 일대", storeArea: "15",
+      etc: "", consent: true, source: "mail", createdAt: at(0, 10) },
+    { id: "d2", name: "박서연", phone: "010-8765-4321", email: "seoyeon@example.com", ageBand: "30",
+      regions: [{ sido: "경기", sigungu: "용인시 수지구", area: "" }, { sido: "서울", sigungu: "송파구", area: "잠실" }], investment: 20000,
+      fnbExp: "staff", fnbDetail: "베이커리 매니저 3년", motive: "매장 근무 경험을 바탕으로 직접 운영하고 싶습니다.",
+      openTiming: "m12", operation: "self", operationNote: "", store: "none", storeAddress: "", storeArea: "",
+      etc: "교육 기간이 궁금합니다.", consent: true, source: "homepage", createdAt: at(1, 15, 40) },
+    { id: "d3", name: "이도윤", phone: "010-1111-2222", email: "doyun@example.com", ageBand: "50",
+      regions: [{ sido: "인천", sigungu: "연수구", area: "송도" }], investment: 15000,
+      fnbExp: "none", fnbDetail: "", motive: "퇴직 후 창업을 준비하고 있습니다.",
+      openTiming: "nego", operation: "manager", operationNote: "", store: "none", storeAddress: "", storeArea: "",
+      etc: "", consent: true, source: "mail", createdAt: at(2, 11), status: "hold", gradeAtReview: "C", scoreAtReview: 18 },
+    { id: "d4", name: "최유진", phone: "010-3333-4444", email: "yujin@example.com", ageBand: "40",
+      regions: [{ sido: "경기", sigungu: "성남시 분당구", area: "판교" }], investment: 32000,
+      fnbExp: "none", fnbDetail: "", motive: "판교 오피스 상권에서 디저트 매장을 찾고 있습니다.",
+      openTiming: "m3", operation: "manager", operationNote: "", store: "secured", storeAddress: "성남시 분당구 삼평동 1층 상가", storeArea: "18",
+      etc: "", consent: true, source: "mail", createdAt: at(3, 9, 5), status: "consult", gradeAtReview: "A", scoreAtReview: 79 },
+    { id: "d5", name: "김지훈", phone: "010-2345-6789", email: "jihoon@example.com", ageBand: "40",
+      regions: [{ sido: "경기", sigungu: "성남시 분당구", area: "" }], investment: 25000,
+      fnbExp: "owner", fnbDetail: "커피 전문점 운영", motive: "상담을 다시 요청드립니다.",
+      openTiming: "m6", operation: "self", operationNote: "", store: "none", storeAddress: "", storeArea: "",
+      etc: "", consent: true, source: "homepage", createdAt: at(9, 17, 30), status: "reviewed" },
+    { id: "d6", name: "한수빈", phone: "010-5555-6666", email: "subin@example.com", ageBand: "30",
+      regions: [{ sido: "부산", sigungu: "해운대구", area: "" }], investment: 19000,
+      fnbExp: "staff", fnbDetail: "패스트푸드 매장 근무 1년", motive: "부산 지역 출점 계획이 있는지 궁금합니다.",
+      openTiming: "y1", operation: "other", operationNote: "가족과 공동 운영", store: "none", storeAddress: "", storeArea: "",
+      etc: "", consent: true, source: "mail", createdAt: at(12, 14) }
+  ];
+}
+
+/* ---------- 시작 ---------- */
+if (DEMO) {
+  $("#demoBanner").hidden = false;
+  CFG = C.mergeGrading({ regionKeywords: { p1: ["성남시 분당구", "판교"], p2: ["용인시 수지구", "서울 송파구"] } });
+  ALL = demoData();
+  showApp("demo");
+  refresh();
+} else if (!C.firebaseConfig.apiKey) {
+  showLogin("config.js에 Firebase 설정값을 먼저 입력하세요.\n화면 구성은 주소 뒤에 ?demo 를 붙여 미리 볼 수 있습니다.");
+  $("#lBtn").disabled = true;
+} else {
+  init();
+}
+</script>
+</body>
+</html>
