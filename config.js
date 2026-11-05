@@ -26,6 +26,9 @@ export const PRIVACY = {
 
 export const FORM_VERSION = 1;
 
+/* ③-1 보관 기간: 접수일로부터 이 기간이 지난 문의는 관리자 화면을 열 때 자동 삭제됩니다. */
+export const RETENTION_MONTHS = 12;
+
 /* ③ 선택 항목 — 값(v)은 보안 규칙·등급 기준과 연결되어 있으니 문구(t)만 수정하세요. */
 export const AGE = [
   { v: "20", t: "20대" }, { v: "30", t: "30대" }, { v: "40", t: "40대" },
@@ -77,7 +80,8 @@ export const REGIONS = {
 };
 
 /* ⑤ 등급 분류 기본값 (초안)
-   관리자 화면 > 등급 기준에서 수정·저장하면 저장된 값이 우선 적용됩니다. */
+   관리자 화면 > 등급 기준에서 수정·저장하면 저장된 값이 우선 적용됩니다.
+   점포 확보·오픈 시기는 점수에 넣지 않고 참고용으로만 보여 줍니다. */
 export const DEFAULT_GRADING = {
   minInvest: 18000,                                   // 만원. 미만이면 점수와 관계없이 C
   investTiers: [ { min: 25000, score: 30 }, { min: 18000, score: 20 } ],
@@ -85,8 +89,7 @@ export const DEFAULT_GRADING = {
   regionKeywords: { p1: [], p2: [] },                 // 2027 우선 출점 1·2순위 상권
   fnb:   { owner: 15, staff: 8, none: 0 },
   oper:  { self: 10, manager: 4, other: 4 },
-  store: { secured: 10, reviewing: 6, none: 2 },
-  open:  { m3: 5, m6: 5, m12: 2, y1: 2, nego: 2 },
+  age:   { "20": 10, "30": 15, "40": 15, "50": 10, "60": 5 },   // 임시 초안 — 내부 기준으로 수정
   cut:   { A: 75, B: 50 }
 };
 
@@ -140,8 +143,7 @@ export function mergeGrading(src = {}) {
     regionKeywords: { p1: kws(src.regionKeywords?.p1), p2: kws(src.regionKeywords?.p2) },
     fnb: map(d.fnb, src.fnb),
     oper: map(d.oper, src.oper),
-    store: map(d.store, src.store),
-    open: map(d.open, src.open),
+    age: map(d.age, src.age),
     cut: { A: num(src.cut?.A, d.cut.A), B: num(src.cut?.B, d.cut.B) }
   };
 }
@@ -149,7 +151,15 @@ export function mergeGrading(src = {}) {
 const maxOf = obj => Math.max(0, ...Object.values(obj).map(Number));
 export function maxScore(cfg) {
   return Math.max(0, ...cfg.investTiers.map(t => t.score)) + maxOf(cfg.regionScore)
-    + maxOf(cfg.fnb) + maxOf(cfg.oper) + maxOf(cfg.store) + maxOf(cfg.open);
+    + maxOf(cfg.fnb) + maxOf(cfg.oper) + maxOf(cfg.age);
+}
+
+/* 보관 기한: 접수일 + RETENTION_MONTHS */
+export function expiryOf(createdAt) {
+  const d = toDate(createdAt);
+  if (!d) return null;
+  const e = new Date(d); e.setMonth(e.getMonth() + RETENTION_MONTHS);
+  return e;
 }
 
 /* 등급 계산: 항목별 점수 → 합계 → 필수 조건 확인 → A/B/C */
@@ -173,8 +183,7 @@ export function computeGrade(inq, cfg) {
   const opt = (lbl, map, list, v) => items.push({ label: lbl, score: Number(map[v] ?? 0), max: maxOf(map), note: label(list, v) });
   opt("외식업 경험", cfg.fnb, FNB, inq.fnbExp);
   opt("운영 참여", cfg.oper, OPER, inq.operation);
-  opt("점포 확보", cfg.store, STORE, inq.store);
-  opt("오픈 시기", cfg.open, OPEN, inq.openTiming);
+  opt("연령대", cfg.age, AGE, inq.ageBand);
 
   const total = items.reduce((s, i) => s + i.score, 0);
   const mustFail = inv < cfg.minInvest;
