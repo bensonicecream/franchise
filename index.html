@@ -319,9 +319,9 @@ import * as C from "./config.js";
 const $  = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 
-/* 유입 경로: 링크 뒤에 ?src=homepage 를 붙이면 홈페이지 유입으로 기록 */
+/* 구분: 접수폼 링크로 제출하면 '메일 접수'. 링크 뒤에 ?src=homepage 를 붙인 경우만 '홈페이지 접수' */
 const srcParam = new URLSearchParams(location.search).get("src");
-const SOURCE = !srcParam || srcParam === "mail" ? "mail" : (srcParam === "homepage" || srcParam === "hp") ? "homepage" : "etc";
+const SOURCE = (srcParam === "homepage" || srcParam === "hp") ? "homepage" : "mail";
 
 if (!C.firebaseConfig.apiKey) $("#setup").hidden = false;
 

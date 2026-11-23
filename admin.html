@@ -96,7 +96,7 @@ main{padding:20px 24px 56px;max-width:1440px;margin:0 auto}
 .tbl tbody tr.sel{background:var(--brand-tint)}
 .tbl .r{text-align:right;font-variant-numeric:tabular-nums}
 .tbl .c{text-align:center}
-.tbl .region{max-width:210px;overflow:hidden;text-overflow:ellipsis}
+.tbl .region{max-width:170px;overflow:hidden;text-overflow:ellipsis}
 .tbl .who{font-weight:700}
 .empty{padding:56px 16px;text-align:center;color:var(--ink-3)}
 
@@ -150,6 +150,7 @@ main{padding:20px 24px 56px;max-width:1440px;margin:0 auto}
 .manage .full{grid-column:1/-1}
 .manage select,.manage textarea{border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:#fff;color:var(--ink)}
 .manage select{height:38px}
+.manage input{height:38px;border:1px solid var(--line);border-radius:8px;padding:0 10px;background:#fff;color:var(--ink);font-weight:400;width:100%}
 .manage textarea{min-height:90px;resize:vertical}
 .m-actions{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center}
 .m-meta{grid-column:1/-1;color:var(--ink-3);font-size:12.5px;margin:0}
@@ -299,6 +300,14 @@ main{padding:20px 24px 56px;max-width:1440px;margin:0 auto}
 .tg2 label{display:inline-flex;gap:4px;align-items:center;font-weight:700}
 @media (max-width:820px){.ev-meta,.dform .row2{grid-template-columns:1fr}.scale span{font-size:10px}}
 
+/* 구분 */
+.src{display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap;background:var(--ground);color:var(--ink-2)}
+.src.mail{background:var(--brand-tint);color:var(--brand-ink)}
+.src.network{background:#F4F3FF;color:#5925DC}
+.src.br{background:#FDF2FA;color:#C11574}
+.src.homepage{background:#ECFDF3;color:#067647}
+.imp-tbl select{height:30px;border:1px solid var(--line);border-radius:6px;padding:0 6px;background:#fff;max-width:150px}
+
 /* 엑셀 일괄 등록 */
 .drawer.xwide{width:min(980px,100vw)}
 .imp-tbl{min-width:820px}
@@ -381,7 +390,7 @@ main{padding:20px 24px 56px;max-width:1440px;margin:0 auto}
       <span class="range"><input type="date" id="fFrom" aria-label="시작일"> ~ <input type="date" id="fTo" aria-label="종료일"></span>
       <select id="fGrade" aria-label="등급"><option value="">등급 전체</option><option>A</option><option>B</option><option>C</option></select>
       <select id="fStatus" aria-label="처리 상태"></select>
-      <select id="fSource" aria-label="유입 경로"></select>
+      <select id="fSource" aria-label="구분"></select>
       <select id="fAff" aria-label="우호도"></select>
       <select id="fE2" aria-label="2차 평가"><option value="">2차 평가 전체</option><option value="wait">2차 평가 대기</option>
         <option value="draft">2차 작성 중</option><option value="pass">심의 상정</option><option value="recheck">보완 후 재상담</option><option value="fail">부적합</option></select>
@@ -405,8 +414,8 @@ main{padding:20px 24px 56px;max-width:1440px;margin:0 auto}
     <div class="table-wrap">
       <table class="tbl">
         <thead><tr>
-          <th>접수일시</th><th>성함</th><th>연락처</th><th>희망 지역</th><th class="r">투자 가능</th>
-          <th>1차 평가</th><th>2차 평가</th><th>우호도</th><th>진행 단계</th><th>최근 접촉</th><th>다음 일정</th><th>유입</th>
+          <th>접수일시</th><th>성함</th><th>구분</th><th>연락처</th><th>희망 지역</th><th class="r">투자 가능</th>
+          <th>1차 평가</th><th>2차 평가</th><th>우호도</th><th>진행 단계</th><th>최근 접촉</th><th>다음 일정</th>
         </tr></thead>
         <tbody id="rows"></tbody>
       </table>
@@ -792,9 +801,9 @@ function baseFilter(list) {
   return list.filter(r => {
     if (from && (!r._date || r._date < from)) return false;
     if (to && (!r._date || r._date > to)) return false;
-    if (filt.source && (r.source || "mail") !== filt.source) return false;
+    if (filt.source && srcOf(r) !== filt.source) return false;
     if (q) {
-      const hay = [r.name, r.email, r.regionNote, ...(r.regions || []).map(C.regionLabel)].join(" ").toLowerCase();
+      const hay = [r.name, r.email, r.regionNote, r.sourceNote, ...(r.regions || []).map(C.regionLabel)].join(" ").toLowerCase();
       if (!hay.includes(q) && !(qd.length >= 3 && digits(r.phone).includes(qd))) return false;
     }
     return true;
@@ -863,6 +872,14 @@ function affSelect(r) {
     ${C.AFFINITY.map(o => `<option value="${o.v}"${r._aff === o.v ? " selected" : ""}>${esc(o.t)}</option>`).join("")}
   </select>`;
 }
+const srcOf = r => C.SOURCE.some(x => x.v === r.source) ? r.source : "etc";
+const srcLabel = v => (C.SOURCE.find(x => x.v === v) || {}).t || "기타";
+function srcCell(r) {
+  const v = srcOf(r), o = C.SOURCE.find(x => x.v === v) || {};
+  const how = r.entry === "manual" ? "직접 등록" : r.entry === "import" ? "엑셀 일괄 등록" : "접수폼";
+  return `<span class="src ${v}" title="${esc([o.t, r.sourceNote, how].filter(Boolean).join(" · "))}">${esc(o.s || o.t || "기타")}</span>`
+    + (r.entry === "manual" ? `<span class="cell-sub">수기</span>` : r.entry === "import" ? `<span class="cell-sub">일괄</span>` : "");
+}
 function statusCell(s) { return `<span class="st ${s}" title="${esc(C.label(C.STATUS, s))}">${esc(STATUS_SHORT[s] || C.label(C.STATUS, s))}</span>`; }
 function e2Cell(r) {
   if (!r._e2) return r._e2state === "wait" ? `<span class="chip wait">대기</span>` : `<span class="muted">-</span>`;
@@ -890,6 +907,7 @@ function renderTable() {
     return `<tr data-id="${esc(r.id)}" tabindex="0" class="${r.id === openId ? "sel" : ""}">
       <td>${fmtShort(r._date)}</td>
       <td class="who">${esc(r.name)}${r._dup > 1 ? `<span class="tag" title="같은 연락처로 ${r._dup}건 접수">중복 ${r._dup}</span>` : ""}${delTag(r)}</td>
+      <td>${srcCell(r)}</td>
       <td>${esc(r.phone)}</td>
       <td class="region" title="${esc(regs.map(C.regionLabel).join(", "))}">${esc(reg)}</td>
       <td class="r">${esc(C.manToShort(r.investment))}</td>
@@ -899,7 +917,6 @@ function renderTable() {
       <td>${statusCell(r._status)}</td>
       <td>${lastCell(r)}</td>
       <td>${nextCell(r)}</td>
-      <td>${esc(C.label(C.SOURCE, r.source || "mail"))}${r.entry === "manual" ? `<span class="muted"> (수기)</span>` : r.entry === "import" ? `<span class="muted"> (일괄)</span>` : ""}</td>
     </tr>`;
   }).join("");
   $("#keepNote").textContent = `접수일로부터 ${keepLabel}이 지나면 자동 삭제`;
@@ -939,7 +956,7 @@ async function setAffinity(id, v) {
 
 /* 필터 */
 $("#fStatus").innerHTML = `<option value="">진행 단계 전체</option>` + C.STATUS.map(s => `<option value="${s.v}">${esc(STATUS_SHORT[s.v] || s.t)}</option>`).join("");
-$("#fSource").innerHTML = `<option value="">유입 전체</option>` + C.SOURCE.map(s => `<option value="${s.v}">${esc(s.t)}</option>`).join("");
+$("#fSource").innerHTML = `<option value="">구분 전체</option>` + C.SOURCE.map(s => `<option value="${s.v}">${esc(s.t)}</option>`).join("");
 $("#fAff").innerHTML = `<option value="">우호도 전체</option>` + C.AFFINITY.map(s => `<option value="${s.v}">우호도 ${esc(s.t)}</option>`).join("")
   + `<option value="none">우호도 미평가</option>`;
 const filterMap = { fQ: "q", fFrom: "from", fTo: "to", fGrade: "grade", fStatus: "status", fSource: "source", fAff: "aff", fE2: "e2", fNext: "next", fSort: "sort" };
@@ -961,7 +978,7 @@ $("#exportBtn").addEventListener("click", () => {
   if (!VIEW.length) { toast("내보낼 문의가 없습니다.", true); return; }
   const reg = (r, i) => r.regions?.[i] ? C.regionLabel(r.regions[i]) : "";
   const rows = VIEW.map(r => ({
-    "접수일시": fmtFull(r._date), "유입": C.label(C.SOURCE, r.source || "mail"),
+    "접수일시": fmtFull(r._date), "구분": srcLabel(srcOf(r)), "구분 상세": r.sourceNote || "",
     "성함": r.name, "연락처": r.phone, "이메일": r.email, "연령대": C.label(C.AGE, r.ageBand),
     "희망지역1": reg(r, 0), "희망지역2": reg(r, 1), "희망지역3": reg(r, 2),
     "투자가능금액(만원)": Number(r.investment) || 0,
@@ -988,7 +1005,7 @@ $("#exportBtn").addEventListener("click", () => {
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "가맹문의");
   const cRows = VIEW.flatMap(r => r._contacts.map(c => ({
-    "성함": r.name, "연락처": r.phone, "1차 등급": r._final, "진행 단계": C.label(C.STATUS, r._status),
+    "성함": r.name, "연락처": r.phone, "구분": srcLabel(srcOf(r)), "1차 등급": r._final, "진행 단계": C.label(C.STATUS, r._status),
     "접촉 일시": fmtFull(c._at), "방법": C.label(C.CONTACT_METHODS, c.method), "연결": c.noAnswer ? "연결 안 됨" : "연결",
     "내용": c.summary || "", "다음 할 일": c.next || "", "예정일": c.nextAt || "", "기록자": c.byName || c.by || ""
   })));
@@ -1057,7 +1074,7 @@ function renderDrawer(id) {
   if (!r) { closeDrawer(true); return; }
   $("#dTitle").innerHTML = `${esc(r.name)} <span class="badge ${r._final}" title="1차 기본평가 등급">${r._final}</span>`
     + (r._e2?.verdict ? `<span class="chip ${r._e2.verdict}" title="2차 최종 판정">${VSHORT[r._e2.verdict]}</span>` : "");
-  $("#dSub").textContent = `${fmtFull(r._date)} 접수, ${C.label(C.SOURCE, r.source || "mail")} 유입${r.entry === "manual" ? " (직접 등록)" : r.entry === "import" ? " (엑셀 일괄 등록)" : ""}`;
+  $("#dSub").textContent = `${fmtFull(r._date)} 접수 · 구분: ${srcLabel(srcOf(r))}${r.sourceNote ? ` (${r.sourceNote})` : ""}${r.entry === "manual" ? " · 직접 등록" : r.entry === "import" ? " · 엑셀 일괄 등록" : ""}`;
   const tabs = [["basic", "1차 평가·진행", ""], ["contacts", "접촉 이력", r._contacts.length || ""],
     ["eval2", "2차 심층평가", r._e2 ? `${r._e2.total}점` : r._e2state === "wait" ? "대기" : ""]];
   const body = dTab === "contacts" ? contactsTab(r) : dTab === "eval2" ? eval2Tab(r) : basicTab(r);
@@ -1123,6 +1140,8 @@ function basicTab(r) {
     <section class="d-sec">
       <h3>진행 관리</h3>
       <div class="manage">
+        <label>구분<select id="mSource">${C.SOURCE.map(o => `<option value="${o.v}">${esc(o.t)}</option>`).join("")}</select></label>
+        <label><span>구분 상세 <span class="muted" style="font-weight:500">선택</span></span><input id="mSourceNote" maxlength="100"></label>
         <label>우호도<select id="mAff"><option value="">미평가</option>${C.AFFINITY.map(o => `<option value="${o.v}">${esc(o.t)}</option>`).join("")}</select></label>
         <label>등급<select id="mGrade">
           <option value="">자동 (${g.grade})</option><option value="A">A로 조정</option><option value="B">B로 조정</option><option value="C">C로 조정</option>
@@ -1144,8 +1163,12 @@ function bindBasic(r) {
   $("#mGrade").value = r.gradeOverride || "";
   $("#mStatus").value = r._status;
   $("#mAff").value = r._aff;
+  $("#mSource").value = srcOf(r);
+  $("#mSourceNote").value = r.sourceNote || "";
+  const srcHint = () => { $("#mSourceNote").placeholder = (C.SOURCE.find(x => x.v === $("#mSource").value) || {}).hint || "필요하면 메모"; };
+  srcHint(); $("#mSource").addEventListener("change", srcHint);
   $("#mMemo").value = r.memo || "";
-  ["mAff", "mGrade", "mStatus", "mMemo"].forEach(i => $("#" + i).addEventListener("input", () => { dirty = true; }));
+  ["mSource", "mSourceNote", "mAff", "mGrade", "mStatus", "mMemo"].forEach(i => $("#" + i).addEventListener("input", () => { dirty = true; }));
   $("#mSave").addEventListener("click", () => saveReview(r.id));
   $("#mDel").addEventListener("click", () => removeInquiry(r.id));
   $("#mEdit").addEventListener("click", () => openEntry(r));
@@ -1397,6 +1420,8 @@ async function saveReview(id) {
   const status = $("#mStatus").value;
   const payload = { gradeOverride: ov, status, memo: $("#mMemo").value.trim().slice(0, 2000), reviewedBy: DEMO ? "demo" : user.email };
   if (status !== "new") { payload.gradeAtReview = ov || r._g.grade; payload.scoreAtReview = r._g.total; }
+  const src = $("#mSource").value || "etc", srcNote = $("#mSourceNote").value.trim().slice(0, 100);
+  if (src !== srcOf(r) || srcNote !== (r.sourceNote || "")) { payload.source = src; payload.sourceNote = srcNote; }
   const aff = $("#mAff").value;
   const affChanged = aff !== r._aff;
   if (affChanged) { payload.affinity = aff || null; payload.affinityBy = payload.reviewedBy; }
@@ -1489,7 +1514,8 @@ function openEntry(rec = null) {
         <label>연락처<input id="ePhone" maxlength="13" inputmode="numeric"></label>
         <label class="full"><span>이메일 <span class="opt">선택</span></span><input id="eEmail" type="email" maxlength="120"></label>
         <label>접수일<input id="eDate" type="date"></label>
-        <label>유입 경로<select id="eSource">${C.SOURCE.map(o => `<option value="${o.v}">${esc(o.t)}</option>`).join("")}</select></label>
+        <label>구분<select id="eSource">${C.SOURCE.map(o => `<option value="${o.v}">${esc(o.t)}</option>`).join("")}</select></label>
+        <label class="full"><span>구분 상세 <span class="opt">선택</span></span><input id="eSourceNote" maxlength="100"></label>
         <label>연령대<select id="eAge">${selOpts(C.AGE)}</select></label>
         <label>총 투자 가능 금액 (만원)<input id="eInv" inputmode="numeric" maxlength="9"><small id="eInvRead"></small></label>
         <div class="grp full"><span>희망 지역 <span class="opt">최대 3곳</span></span>
@@ -1540,7 +1566,10 @@ function openEntry(rec = null) {
 function fillEntry(d) {
   const set = (id, v) => { $("#" + id).value = v ?? ""; };
   set("eName", d.name); set("ePhone", d.phone); set("eEmail", d.email); set("eAge", d.ageBand);
-  if (d.source || !$("#eSource").value) set("eSource", d.source || "mail");
+  if (d.source || !$("#eSource").value) set("eSource", C.SOURCE.some(x => x.v === d.source) ? d.source : d.source ? "etc" : "mail");
+  set("eSourceNote", d.sourceNote);
+  const eHint = () => { $("#eSourceNote").placeholder = (C.SOURCE.find(x => x.v === $("#eSource").value) || {}).hint || "필요하면 메모"; };
+  eHint(); $("#eSource").onchange = eHint;
   set("eInv", d.investment ? Number(d.investment).toLocaleString("ko-KR") : "");
   set("eFnb", d.fnbExp); set("eFnbDetail", d.fnbDetail); set("eMotive", d.motive);
   set("eOpen", d.openTiming); set("eOpenNote", d.openTimingNote);
@@ -1571,7 +1600,7 @@ function runParse() {
 function readEntry() {
   const v = id => $("#" + id).value.trim();
   const d = {
-    name: v("eName"), phone: P.fmtPhone(v("ePhone")), email: v("eEmail"), ageBand: v("eAge"), source: v("eSource") || "mail",
+    name: v("eName"), phone: P.fmtPhone(v("ePhone")), email: v("eEmail"), ageBand: v("eAge"), source: v("eSource") || "mail", sourceNote: v("eSourceNote").slice(0, 100),
     regions: readERegions(), investment: Number(v("eInv").replace(/\D/g, "")) || 0,
     fnbExp: v("eFnb"), fnbDetail: v("eFnbDetail").slice(0, 1000), motive: v("eMotive").slice(0, 2000),
     openTiming: v("eOpen"), openTimingNote: v("eOpenNote").slice(0, 100),
@@ -1667,10 +1696,14 @@ function openImport() {
     <section class="d-sec" id="iResult" hidden>
       <h3>2. 등록할 내용 확인 <span class="muted">체크한 행만 등록됩니다. 등록 후 상세 화면 [응답 수정]으로 고칠 수 있습니다.</span></h3>
       <p class="hint" id="iCols" style="margin:0 0 8px"></p>
+      <div class="e-row" style="margin:0 0 10px"><label style="font-weight:600;color:var(--ink-2)">구분 일괄 지정
+        <select id="iSrcAll" style="height:32px;border:1px solid var(--line);border-radius:7px;margin-left:6px">
+          <option value="">행마다 선택</option>${C.SOURCE.map(o => `<option value="${o.v}">${esc(o.t)}</option>`).join("")}</select></label>
+        <span class="muted">엑셀에 '구분' 열이 있으면 그 값을 먼저 읽습니다.</span></div>
       <div class="table-wrap" style="max-height:none">
         <table class="tbl imp-tbl">
           <thead><tr><th><input type="checkbox" id="iAll" checked aria-label="전체 선택"></th><th>접수일</th><th>성명</th><th>연락처</th>
-            <th>희망 지역</th><th class="r">투자</th><th>경험</th><th class="c">예상 등급</th></tr></thead>
+            <th>구분</th><th>희망 지역</th><th class="r">투자</th><th>경험</th><th class="c">예상 등급</th></tr></thead>
           <tbody id="iRows"></tbody>
         </table>
       </div>
@@ -1697,11 +1730,18 @@ function openImport() {
     e.target.value = "";
   });
   $("#iRows").addEventListener("change", e => {
+    const sel = e.target.closest(".i-src");
+    if (sel) { importItems[Number(sel.closest("tr").dataset.i)].src = sel.value; $("#iSrcAll").value = ""; return; }
     const cb = e.target.closest(".i-on"); if (!cb) return;
     importItems[Number(cb.closest("tr").dataset.i)].on = cb.checked;
     const i = cb.closest("tr").dataset.i;
     $$(`#iRows tr[data-i="${i}"], #iRows tr[data-w="${i}"]`).forEach(tr => tr.classList.toggle("off", !cb.checked));
     updateImportSum();
+  });
+  $("#iSrcAll").addEventListener("change", e => {
+    if (!e.target.value) return;
+    importItems.forEach(it => { it.src = e.target.value; });
+    $$("#iRows .i-src").forEach(s => { s.value = e.target.value; });
   });
   $("#iAll").addEventListener("change", e => { importItems.forEach(it => { it.on = e.target.checked; }); renderImportRows(); });
   $("#iCancel").addEventListener("click", () => closeDrawer());
@@ -1723,7 +1763,7 @@ function runImportPreview(rows) {
       ...(dup ? ["같은 연락처의 문의가 이미 있어 체크를 해제했습니다."] : []),
       ...(expired ? [`접수일로부터 보관 기간이 지나 등록해도 바로 자동 삭제되므로 체크를 해제했습니다.`] : []),
       ...it.warnings];
-    return { ...it, warnings, on: !dup && !expired };
+    return { ...it, warnings, on: !dup && !expired, src: it.data.source || "etc" };
   });
   const known = res.columns.filter(c => c.key !== "extra").map(c => c.label);
   const extra = res.columns.filter(c => c.key === "extra").map(c => c.label);
@@ -1745,11 +1785,12 @@ function renderImportRows() {
       <td>${fmtFull(it.date).slice(0, 10)}</td>
       <td class="who">${esc(d.name)}</td>
       <td>${esc(d.phone || "-")}</td>
+      <td><select class="i-src" aria-label="${esc(d.name)} 구분">${C.SOURCE.map(o => `<option value="${o.v}"${it.src === o.v ? " selected" : ""}>${esc(o.s || o.t)}</option>`).join("")}</select></td>
       <td class="region" style="max-width:220px" title="${esc(d.regionNote)}">${esc(regions || d.regionNote || "-")}</td>
       <td class="r">${d.investment ? esc(C.manToShort(d.investment)) : "-"}</td>
       <td>${d.fnbExp ? FNB_SHORT[d.fnbExp] : `<span class="muted">미분류</span>`}</td>
       <td class="c"><span class="badge ${g.grade}">${g.grade}</span> <span class="muted">${g.total}점</span></td>
-    </tr>${it.warnings.length ? `<tr class="w-row${off}" data-w="${i}"><td></td><td colspan="7">${it.warnings.map(w => "· " + esc(w)).join("<br>")}</td></tr>` : ""}`;
+    </tr>${it.warnings.length ? `<tr class="w-row${off}" data-w="${i}"><td></td><td colspan="8">${it.warnings.map(w => "· " + esc(w)).join("<br>")}</td></tr>` : ""}`;
   }).join("");
   updateImportSum();
 }
@@ -1766,7 +1807,7 @@ async function saveImport() {
   const by = DEMO ? "demo" : user.email;
   const btn = $("#iSave"); btn.disabled = true; $("#iErr").textContent = "";
   const who = whoAmI(), now = new Date();
-  const base = it => ({ ...it.data, consent: false, source: "etc", entry: "import", enteredBy: by, formVersion: C.FORM_VERSION,
+  const base = it => ({ ...it.data, consent: false, source: it.src || "etc", entry: "import", enteredBy: by, formVersion: C.FORM_VERSION,
     contacts: (it.data.contacts || []).map(c => ({ id: newId(), ...c, at: ts(c.at), ...who, savedAt: ts(now) })) });
   try {
     if (DEMO) list.forEach((it, k) => ALL.push({ id: `imp${Date.now()}${k}`, ...base(it), createdAt: it.date, enteredAt: new Date() }));
@@ -2168,7 +2209,7 @@ function demoData() {
       regions: [{ sido: "인천", sigungu: "연수구", area: "송도" }], investment: 15000,
       fnbExp: "none", fnbDetail: "", motive: "퇴직 후 창업을 준비하고 있습니다.",
       openTiming: "nego", operation: "manager", operationNote: "", store: "none", storeAddress: "", storeArea: "",
-      etc: "", consent: true, source: "mail", createdAt: at(2, 11), status: "hold", gradeAtReview: "C", scoreAtReview: 24 },
+      etc: "", consent: true, source: "br", sourceNote: "배스킨라빈스 송도점 6년 운영", createdAt: at(2, 11), status: "hold", gradeAtReview: "C", scoreAtReview: 24 },
     { id: "d4", name: "최유진", phone: "010-3333-4444", email: "yujin@example.com", ageBand: "40",
       regions: [{ sido: "경기", sigungu: "성남시 분당구", area: "판교" }], investment: 32000,
       fnbExp: "none", fnbDetail: "", motive: "판교 오피스 상권에서 디저트 매장을 찾고 있습니다.",
@@ -2192,7 +2233,7 @@ function demoData() {
       regions: [{ sido: "부산", sigungu: "해운대구", area: "" }], investment: 19000,
       fnbExp: "staff", fnbDetail: "패스트푸드 매장 근무 1년", motive: "부산 지역 출점 계획이 있는지 궁금합니다.",
       openTiming: "y1", operation: "other", operationNote: "가족과 공동 운영", store: "none", storeAddress: "", storeArea: "",
-      etc: "", consent: true, source: "mail", createdAt: at(12, 14), affinity: "low", status: "deliberation",
+      etc: "", consent: true, source: "network", sourceNote: "해운대점 예비 점주 소개", createdAt: at(12, 14), affinity: "low", status: "deliberation",
       contacts: [
         { id: "c6a", at: at(11, 11), method: "call", noAnswer: false, ...who, summary: "유선 상담, 부산 출점 가능 여부 문의.", next: "", nextAt: "" },
         { id: "c6b", at: at(6, 14), method: "meet", noAnswer: false, ...who, summary: "본사 대면 상담 진행.", next: "출점 심의 결과 안내", nextAt: day(5) }

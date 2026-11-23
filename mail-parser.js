@@ -3,7 +3,7 @@
    기존 안내 메일(1~10번 질문 + "답변:") 형식을 읽습니다.
    자동 인식 결과는 관리자가 확인·수정한 뒤 등록하는 것을 전제로 합니다.
    ================================================================ */
-import { REGIONS } from "./config.js";
+import { REGIONS, SOURCE } from "./config.js";
 
 export function fmtPhone(v) {
   const d = String(v || "").replace(/\D/g, "").slice(0, 11);
@@ -383,9 +383,22 @@ export function replyMethod(text) {
   return "etc";
 }
 
+/* 구분 글자 → 구분 값 (모르는 글자면 빈 값) */
+export function sourceFrom(text) {
+  const t = String(text || "").replace(/\s+/g, "");
+  if (!t) return "";
+  if (/배스킨|베스킨|BR|비알|전환/i.test(t)) return "br";
+  if (/네트워크|기존점주|점주소개|지인|소개|추천|인맥/.test(t)) return "network";
+  if (/홈페이지|홈피|웹사이트/.test(t)) return "homepage";
+  if (/메일|이메일|링크|접수폼/.test(t)) return "mail";
+  if (/^기타$/.test(t)) return "etc";
+  return "";
+}
+
 /* 제목 행 → 항목 */
 const COLS = [
   ["date", /접수\s*일|문의\s*일|날짜|일자/],
+  ["kind", /^\s*(구분|유입|유입\s*경로|문의\s*경로|접수\s*경로|경로|채널)\s*$/],
   ["name", /성명|성함|이름/],
   ["age", /연령|나이/],
   ["open", /출점\s*시기|오픈\s*시기|시기/],
@@ -465,6 +478,11 @@ export function tableToInquiries(rows, today = new Date()) {
       warnings: w,
       date: date || today,
       data: {
+        source: sourceFrom(cell("kind")),
+        sourceNote: (() => {                          // 구분 원문이 정해진 이름과 다르면 상세에 남김
+          const raw = cell("kind"), v = sourceFrom(raw), lb = SOURCE.find(x => x.v === v);
+          return raw && (!lb || (raw !== lb.t && raw !== lb.s)) ? raw.slice(0, 100) : "";
+        })(),
         name: name.slice(0, 30), phone, email: cell("email").slice(0, 120), ageBand: age.v,
         regions: rg.regions, regionNote: regionRaw.slice(0, 200),
         investment: iv.v,
