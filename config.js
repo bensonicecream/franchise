@@ -49,9 +49,66 @@ export const OPER = [
 export const STORE = [
   { v: "none", t: "미확보" }, { v: "reviewing", t: "검토 중" }, { v: "secured", t: "확보 완료" }
 ];
+/* 진행 단계 — 가맹문의 응대 프로세스(STEP 1~5) 기준 */
 export const STATUS = [
-  { v: "new", t: "미확인" }, { v: "reviewed", t: "검토 완료" },
-  { v: "consult", t: "상담 진행 (STEP 2)" }, { v: "hold", t: "보류 안내 · DB 보관" }
+  { v: "new", t: "미확인" },
+  { v: "reviewed", t: "1차 검토 완료" },
+  { v: "consult", t: "유선 상담 (STEP 2)" },
+  { v: "interview", t: "대면 상담·2차 평가 (STEP 3)" },
+  { v: "deliberation", t: "출점 심의 (STEP 4)" },
+  { v: "contract", t: "가맹계약 진행 (STEP 5)" },
+  { v: "hold", t: "보류 안내 · DB 보관" },
+  { v: "closed", t: "종료 (탈락·포기)" }
+];
+export const STAGES = [                 // 상세 화면 상단 진행 표시
+  { t: "1차 평가", vs: ["new", "reviewed"] },
+  { t: "유선 상담", vs: ["consult"] },
+  { t: "대면·2차 평가", vs: ["interview"] },
+  { t: "출점 심의", vs: ["deliberation"] },
+  { t: "가맹계약", vs: ["contract"] }
+];
+export const INACTIVE = ["hold", "closed"];   // 연락 예정·2차 평가 대기 집계에서 제외
+
+/* 접촉 이력 — 접촉 방법 */
+export const CONTACT_METHODS = [
+  { v: "call", t: "전화" }, { v: "sms", t: "문자·카톡" }, { v: "mail", t: "메일" },
+  { v: "meet", t: "대면 상담" }, { v: "visit", t: "매장·점포 방문" }, { v: "etc", t: "기타" }
+];
+
+/* ⑥ 2차 심층 상담평가 기본값 (초안)
+   관리자 화면 > 평가 기준에서 항목·배점·확인 포인트를 수정·저장하면 저장된 값이 우선 적용됩니다.
+   항목별로 상담 담당자가 1~5점을 매기고, (점수/5 × 배점)의 합을 100점 만점으로 환산합니다. */
+export const SCALE = [
+  { v: 1, t: "매우 미흡" }, { v: 2, t: "미흡" }, { v: 3, t: "보통" }, { v: 4, t: "우수" }, { v: 5, t: "매우 우수" }
+];
+export const VERDICT = [
+  { v: "pass", t: "심의 상정 (적합)" }, { v: "recheck", t: "보완 후 재상담" }, { v: "fail", t: "부적합 (종료)" }
+];
+export const DEFAULT_INTERVIEW = {
+  targetGrades: ["A", "B"],             // 2차 평가 대상: 1차 등급
+  items: [
+    { id: "store", label: "실제 매장 운영 경험", weight: 20,
+      guide: "운영·근무한 매장의 업종·규모·기간, 본인이 직접 맡은 업무(오픈·마감, 발주·재고, 위생, 고객 응대)" },
+    { id: "career", label: "과거 경력", weight: 10,
+      guide: "직무·조직 경험, 서비스·관리 경험, 경력 공백과 그 사유" },
+    { id: "selfemp", label: "자영업 경험", weight: 10,
+      guide: "사업자 운영 기간·업종, 폐업 경험과 사유, 세무·노무 처리 경험" },
+    { id: "pnl", label: "매출·손익 관리 능력", weight: 20,
+      guide: "매출·원가·인건비·임대료 구조 이해, 손익분기 개념, 자기자본·대출 비중 등 자금 계획" },
+    { id: "staff", label: "인력 운영 계획", weight: 20,
+      guide: "본인 주당 근무 시간과 오픈 초기 직접 근무 여부(오토운영 여부), 직원 채용·교육·근무표 계획" },
+    { id: "area", label: "희망 상권 이해도", weight: 20,
+      guide: "상권의 유동 인구·주 고객층·시간대, 경쟁점 파악, 후보 점포 조건(면적·임대료·가시성) 이해" }
+  ],
+  risks: [
+    { id: "auto", label: "오토운영 우려 (본인 근무 계획 불명확)" },
+    { id: "debt", label: "자금·채무 우려 (차입 비중 과다, 자금 출처 불명확)" },
+    { id: "qsc", label: "운영 기준(QSC)·본사 방침 수용 의지 부족" }
+  ],
+  bands: { good: 70, ok: 50 }           // 100점 환산: 70 이상 우수, 50 이상 보통, 미만 미흡
+};
+export const AFFINITY = [            // 우호도: 담당자가 상담·통화 후 직접 표시 (점수에는 반영 안 함)
+  { v: "high", t: "높음" }, { v: "mid", t: "보통" }, { v: "low", t: "낮음" }
 ];
 export const SOURCE = [
   { v: "mail", t: "메일" }, { v: "homepage", t: "홈페이지" }, { v: "etc", t: "기타" }
@@ -154,6 +211,41 @@ export function maxScore(cfg) {
     + maxOf(cfg.fnb) + maxOf(cfg.oper) + maxOf(cfg.age);
 }
 
+/* 2차 평가 기준: 저장된 값을 기본값과 합쳐 정리 */
+export function mergeInterview(src = {}) {
+  const d = DEFAULT_INTERVIEW;
+  const n = (v, f) => (v === null || v === undefined || v === "" || !Number.isFinite(Number(v))) ? f : Number(v);
+  const items = Array.isArray(src.items) && src.items.length
+    ? src.items.filter(it => it && it.id).map(it => ({ id: String(it.id), label: String(it.label || "").trim() || "(이름 없음)",
+        weight: Math.max(0, n(it.weight, 0)), guide: String(it.guide || "") }))
+    : d.items.map(it => ({ ...it }));
+  const risks = Array.isArray(src.risks)
+    ? src.risks.filter(r => r && r.id && String(r.label || "").trim()).map(r => ({ id: String(r.id), label: String(r.label).trim() }))
+    : d.risks.map(r => ({ ...r }));
+  const tg = Array.isArray(src.targetGrades) ? src.targetGrades.filter(g => ["A", "B", "C"].includes(g)) : [...d.targetGrades];
+  return { targetGrades: tg, items, risks,
+    bands: { good: n(src.bands?.good, d.bands.good), ok: n(src.bands?.ok, d.bands.ok) } };
+}
+
+export const bandOf = (score, cfg) => score >= cfg.bands.good ? "good" : score >= cfg.bands.ok ? "ok" : "low";
+export const BAND = { good: "우수", ok: "보통", low: "미흡" };
+
+/* 2차 평가 계산: 항목별 (점수/5 × 배점) 합계를 100점 만점으로 환산 */
+export function computeEval2(ev, cfg) {
+  if (!ev) return null;
+  const scores = ev.scores || {};
+  const items = cfg.items.map(it => {
+    const s = Number(scores[it.id]) || 0;
+    return { ...it, s, pts: s ? it.weight * s / 5 : 0 };
+  });
+  const sumW = items.reduce((a, i) => a + i.weight, 0);
+  const total = sumW ? Math.round(items.reduce((a, i) => a + i.pts, 0) / sumW * 100) : 0;
+  const unscored = items.filter(i => !i.s).length;
+  const risks = cfg.risks.filter(r => ev.risks?.[r.id]);
+  return { items, total, unscored, band: bandOf(total, cfg), risks,
+    verdict: VERDICT.some(v => v.v === ev.verdict) ? ev.verdict : "" };
+}
+
 /* 보관 기한: 접수일 + RETENTION_MONTHS */
 export function expiryOf(createdAt) {
   const d = toDate(createdAt);
@@ -172,13 +264,13 @@ export function computeGrade(inq, cfg) {
   items.push({ label: "투자 여력", score: tier ? tier.score : 0,
     max: Math.max(0, ...tiers.map(t => t.score)), note: manToText(inv) });
 
-  const texts = (inq.regions || []).map(regionText);
+  const texts = (inq.regions || []).map(regionText).concat(inq.regionNote ? [String(inq.regionNote)] : []);
   const hit = list => list.find(k => texts.some(t => t.includes(k))) || null;
   const k1 = hit(cfg.regionKeywords.p1), k2 = k1 ? null : hit(cfg.regionKeywords.p2);
-  const rs = cfg.regionScore;
+  const rs = cfg.regionScore, noRegion = !texts.some(t => t.trim());
   items.push({ label: "희망 지역", max: maxOf(rs),
-    score: k1 ? rs.p1 : k2 ? rs.p2 : rs.other,
-    note: k1 ? `1순위 상권 (${k1})` : k2 ? `2순위 상권 (${k2})` : "우선 출점 상권 외" });
+    score: k1 ? rs.p1 : k2 ? rs.p2 : noRegion ? 0 : rs.other,
+    note: k1 ? `1순위 상권 (${k1})` : k2 ? `2순위 상권 (${k2})` : noRegion ? "미입력" : "우선 출점 상권 외" });
 
   const opt = (lbl, map, list, v) => items.push({ label: lbl, score: Number(map[v] ?? 0), max: maxOf(map), note: label(list, v) });
   opt("외식업 경험", cfg.fnb, FNB, inq.fnbExp);

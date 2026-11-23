@@ -50,9 +50,16 @@ const SIDO_ALIASES = Object.entries({
   "경남": ["경상남도", "경남"], "제주": ["제주특별자치도", "제주도"]
 }).flatMap(([s, list]) => list.map(a => [s, a])).sort((a, b) => b[1].length - a[1].length);
 
+const SIDO_WORDS = new Set(SIDO_ALIASES.map(([, a]) => a).concat(["광주", "세종"]));
+const stemOf = w => {
+  if (!w) return null;
+  const st = w.replace(/[시군구]$/, "");
+  return st.length >= 2 && st !== w && !SIDO_WORDS.has(st) ? st : null;
+};
 const ENTRIES = Object.entries(REGIONS).flatMap(([sido, list]) => list.map(full => {
   const p = full.split(" ");
-  return { sido, full, last: p[p.length - 1], city: p.length > 1 ? p[0] : null };
+  const last = p[p.length - 1], city = p.length > 1 ? p[0] : null;
+  return { sido, full, last, city, lastStem: stemOf(last), cityStem: stemOf(city) };
 }));
 
 function findSido(text) {
@@ -67,7 +74,9 @@ function findPlaces(text, sido) {
     let word = null, score = 0, at = -1;
     if ((at = findWord(text, e.full)) >= 0) { word = e.full; score = 3; }
     else if (e.last !== e.full && (at = findWord(text, e.last)) >= 0) { word = e.last; score = 2; }
+    else if (e.lastStem && (at = findWord(text, e.lastStem)) >= 0) { word = e.lastStem; score = 1.6; }
     else if (e.city && (at = findWord(text, e.city)) >= 0) { word = e.city; score = 1; }
+    else if (e.cityStem && (at = findWord(text, e.cityStem)) >= 0) { word = e.cityStem; score = 0.9; }
     if (!word) continue;
     const g = groups.get(word) || { word, score, at, list: [] };
     g.list.push(e); groups.set(word, g);
@@ -90,7 +99,8 @@ export function parseRegions(text) {
     let rest = part;
     if (sd) rest = rest.replace(sd.alias, " ");
     places.forEach(g => { rest = rest.replace(g.word, " "); });
-    rest = rest.replace(/\s+/g, " ").replace(/^[\s:：\-–—~·,.]+|[\s:：\-–—~·,]+$/g, "").trim();
+    rest = rest.replace(/\s+/g, " ").split(" ").filter(w => !/^(지역|선호|희망|등|\(?등\)?)$/.test(w)).join(" ")
+      .replace(/\(\s*\)/g, "").replace(/^[\s:：\-–—~·,.]+|[\s:：\-–—~·,]+$/g, "").trim();
 
     if (!places.length) {
       if (sd) {
@@ -110,7 +120,7 @@ export function parseRegions(text) {
       if (g.list.length > 1 && new Set(g.list.map(x => x.sido)).size > 1)
         warnings.push(`'${g.word}'는 여러 시·도에 있어 '${e.sido}'로 넣었습니다. 확인해 주세요.`);
       const area = i === 0 && places.length === 1 ? rest : "";
-      if (g.score === 1) {
+      if (g.score < 1.5) {
         regions.push({ sido: e.sido, sigungu: "", area: `${g.word} ${area}`.trim().slice(0, 60) });
         warnings.push(`'${g.word}': 구가 적혀 있지 않아 시까지만 넣었습니다.`);
       } else {
@@ -126,6 +136,8 @@ export function parseRegions(text) {
 export function parseInvest(text) {
   const s = String(text || "").replace(/[_\s]/g, "");
   if (!s) return { v: 0 };
+  const rg = s.match(/(\d+(?:\.\d+)?)(억)?(?:초반|초|중반|후반)?[~\-–](\d+(?:\.\d+)?)억/);
+  if (rg) return { v: Math.round(parseFloat(rg[1]) * 10000), range: true };
   const m = s.match(/(\d+(?:\.\d+)?)억(?:(\d[\d,]*)(천만|천|만)?)?/);
   if (m) {
     let v = parseFloat(m[1]) * 10000;
@@ -145,9 +157,10 @@ export function parseOpen(text, today = new Date()) {
   const t = String(text || "");
   if (!t.trim()) return { v: "" };
   const y0 = today.getFullYear();
-  const years = [...t.matchAll(/(20\d{2})\s*년?/g)].map(m => ({ at: m.index, y: Number(m[1]) }));
+  const yr = v => { const n = Number(v); return n < 100 ? 2000 + n : n; };
+  const years = [...t.matchAll(/(20\d{2})\s*년?|(?<!\d)(2[4-9])\s*년/g)].map(m => ({ at: m.index, y: yr(m[1] || m[2]) }));
   const yearAt = (idx, own) => {
-    if (own) return Number(own);
+    if (own) return yr(own);
     const prev = years.filter(x => x.at < idx).pop();
     if (prev) return prev.y;
     if (/내년/.test(t)) return y0 + 1;
@@ -155,10 +168,10 @@ export function parseOpen(text, today = new Date()) {
   };
   const spans = [];
   const push = (y, m1, m2) => spans.push({ start: new Date(y, m1 - 1, 1), end: new Date(y, m2, 0) });
-  for (const m of t.matchAll(/(?:(20\d{2})\s*년?\s*)?(상반기|하반기)/g)) {
+  for (const m of t.matchAll(/(?:(20\d{2}|2[4-9])\s*년?\s*)?(상반기|하반기)/g)) {
     const y = yearAt(m.index, m[1]) ?? y0; m[2] === "상반기" ? push(y, 1, 6) : push(y, 7, 12);
   }
-  for (const m of t.matchAll(/(?:(20\d{2})\s*년?\s*)?([1-4])\s*분기/g)) {
+  for (const m of t.matchAll(/(?:(20\d{2}|2[4-9])\s*년?\s*)?([1-4])\s*분기/g)) {
     const y = yearAt(m.index, m[1]) ?? y0, q = Number(m[2]); push(y, q * 3 - 2, q * 3);
   }
   for (const m of t.matchAll(/(?:(20\d{2})\s*년?\s*)?(\d{1,2})\s*월/g)) {
@@ -169,7 +182,7 @@ export function parseOpen(text, today = new Date()) {
   if (!spans.length) for (const y of years) push(y.y, 1, 12);
   const mm = t.match(/(\d{1,2})\s*개월/);
   if (mm) { const n = Number(mm[1]); const s = new Date(today); const e = new Date(today); e.setMonth(e.getMonth() + n); spans.push({ start: s, end: e }); }
-  if (/즉시|바로|최대한\s*빨리|가능한\s*빨리|ASAP/i.test(t)) spans.push({ start: today, end: today });
+  if (/즉시|바로|빠른\s*시일|빠르게|빨리|ASAP/i.test(t)) spans.push({ start: today, end: today });
 
   if (!spans.length) {
     if (/협의|미정|무관|상관\s*없/.test(t)) return { v: "nego" };
@@ -180,6 +193,19 @@ export function parseOpen(text, today = new Date()) {
   const months = ((s.start.getTime() + s.end.getTime()) / 2 - today.getTime()) / (1000 * 60 * 60 * 24 * 30.44);
   const v = months <= 3 ? "m3" : months <= 6 ? "m6" : months <= 12 ? "m12" : "y1";
   return { v, months: Math.round(months * 10) / 10 };
+}
+
+/* ---------- 외식업 경험 분류 ---------- */
+export function classifyFnb(text) {
+  const f = String(text || "").trim();
+  if (!f) return { v: "" };
+  if (/^(없음|없습니다|해당\s*없음)/.test(f) || /^(무|x|-|N)$/i.test(f) || /경험\s*(이|은)?\s*없/.test(f)) return { v: "none" };
+  const family = /(부모|아버지|어머니|아빠|엄마|친형|형이|형님|누나|언니|오빠|동생|가족|배우자|남편|아내|친척)/.test(f);
+  if (family && !/(본인|직접|동업)/.test(f))
+    return { v: "none", warn: `외식업 경험 '${f}'는 가족 경험으로 보여 '경험 없음'으로 넣었습니다. 확인해 주세요.` };
+  if (/운영|점주|창업|사장|오너|대표|자영업|동업/.test(f)) return { v: "owner" };
+  if (/근무|매니저|점장|직원|알바|아르바이트|스태프|크루|바리스타|경력|\d+\s*(년|개월)/.test(f)) return { v: "staff" };
+  return { v: "", warn: `외식업 경험 '${f}'의 구분(운영/근무/없음)을 직접 골라 주세요.` };
 }
 
 /* ---------- 전체 ---------- */
@@ -249,13 +275,10 @@ export function parseMail(raw, today = new Date()) {
   else if (iv.warn) warnings.push(`투자 금액 '${T.invest}'의 단위를 확인해 주세요. (만원으로 넣었습니다)`);
 
   // 5. 외식업 경험
-  const f = T.fnb;
-  d.fnbDetail = f;
-  if (!f) { d.fnbExp = ""; warnings.push("외식업 경험 답변이 없습니다."); }
-  else if (/^(없음|없습니다|무|해당\s*없음)/.test(f) || /경험\s*(이|은)?\s*없/.test(f)) { d.fnbExp = "none"; d.fnbDetail = ""; }
-  else if (/운영|점주|창업|사장|오너|대표|가맹점주/.test(f)) d.fnbExp = "owner";
-  else if (/근무|매니저|점장|직원|알바|아르바이트|스태프|크루|바리스타|경력|\d+\s*(년|개월)/.test(f)) d.fnbExp = "staff";
-  else { d.fnbExp = "staff"; warnings.push("외식업 경험 구분(운영/근무)을 확인해 주세요."); }
+  const fc = classifyFnb(T.fnb);
+  d.fnbExp = fc.v; d.fnbDetail = fc.v === "none" ? "" : T.fnb;
+  if (!T.fnb) warnings.push("외식업 경험 답변이 없습니다.");
+  else if (fc.warn) warnings.push(fc.warn);
 
   // 6. 지원 사유
   d.motive = T.motive.slice(0, 2000);
@@ -288,4 +311,177 @@ export function parseMail(raw, today = new Date()) {
   d.etc = T.etc.slice(0, 2000);
 
   return { data: d, warnings, found };
+}
+
+/* ================================================================
+   엑셀 표 붙여넣기 → 문의 여러 건 일괄 등록
+   ================================================================ */
+
+/* 엑셀에서 복사한 표(탭 구분) 읽기. 셀 안 줄바꿈("...")도 처리 */
+export function parseTSV(text) {
+  const rows = []; let row = [], cell = "", q = false;
+  const s = String(text || "").replace(/\r\n?/g, "\n");
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (q) {
+      if (c === '"') { if (s[i + 1] === '"') { cell += '"'; i++; } else q = false; }
+      else cell += c;
+    } else if (c === '"' && cell === "") q = true;
+    else if (c === "\t") { row.push(cell); cell = ""; }
+    else if (c === "\n") { row.push(cell); rows.push(row); row = []; cell = ""; }
+    else cell += c;
+  }
+  if (cell !== "" || row.length) { row.push(cell); rows.push(row); }
+  return rows.filter(r => r.some(x => String(x).trim()));
+}
+
+/* 연령: '40대', '20대 후반', '50 초반', '32살', '87년생' */
+export function parseAge(text, ref = new Date()) {
+  const t = String(text || "").trim();
+  if (!t) return { v: "" };
+  let m = t.match(/([2-6])0\s*대/) || t.match(/([2-6])0\s*(초|중|후)/);
+  if (m) return { v: m[1] + "0" };
+  m = t.match(/(\d{2})\s*(살|세)/);
+  if (m) return { v: String(Math.min(60, Math.max(20, Math.floor(Number(m[1]) / 10) * 10))) };
+  m = t.match(/(\d{2}|\d{4})\s*년생/);
+  if (m) {
+    let y = Number(m[1]); if (y < 100) y += y > (ref.getFullYear() % 100) ? 1900 : 2000;
+    const age = ref.getFullYear() - y;                       // 만 나이에 가까운 값
+    const band = String(Math.min(60, Math.max(20, Math.floor(age / 10) * 10)));
+    return { v: band, warn: `'${t}' → ${band}대(${ref.getFullYear()}년 기준 약 ${age}세)로 넣었습니다.` };
+  }
+  if (/^6\d|이상/.test(t)) return { v: "60" };
+  return { v: "", warn: `연령 '${t}'를 인식하지 못했습니다.` };
+}
+
+/* 날짜: '8/28(금)', '2026-08-28', '2026.8.28', '8월 28일'
+   연도가 없으면 요일이 맞는 해(올해·작년)를, 요일도 없으면 미래가 아닌 가장 가까운 해를 고릅니다. */
+const WD = { "일": 0, "월": 1, "화": 2, "수": 3, "목": 4, "금": 5, "토": 6 };
+export function parseKDate(text, today = new Date()) {
+  const t = String(text || "").trim();
+  if (!t) return null;
+  let m = t.match(/(20\d{2})[.\-/년\s]+(\d{1,2})[.\-/월\s]+(\d{1,2})/);
+  if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 12);
+  m = t.match(/(\d{1,2})\s*[\/.월]\s*(\d{1,2})/);
+  if (!m) return null;
+  const mo = Number(m[1]) - 1, d = Number(m[2]);
+  const w = t.match(/[(（]\s*([일월화수목금토])/);
+  const ys = [today.getFullYear(), today.getFullYear() - 1, today.getFullYear() + 1];
+  if (w) { const y = ys.find(y => new Date(y, mo, d).getDay() === WD[w[1]]); if (y) return new Date(y, mo, d, 12); }
+  const y = new Date(today.getFullYear(), mo, d) <= today ? today.getFullYear() : today.getFullYear() - 1;
+  return new Date(y, mo, d, 12);
+}
+
+/* 회신·접촉 방법 글자 → 접촉 방법 값 */
+export function replyMethod(text) {
+  const t = String(text || "");
+  if (/메일|mail/i.test(t)) return "mail";
+  if (/유선|전화|통화|콜/.test(t)) return "call";
+  if (/문자|카톡|카카오|sms/i.test(t)) return "sms";
+  if (/대면|미팅|면담|면접/.test(t)) return "meet";
+  if (/방문|답사/.test(t)) return "visit";
+  return "etc";
+}
+
+/* 제목 행 → 항목 */
+const COLS = [
+  ["date", /접수\s*일|문의\s*일|날짜|일자/],
+  ["name", /성명|성함|이름/],
+  ["age", /연령|나이/],
+  ["open", /출점\s*시기|오픈\s*시기|시기/],
+  ["region", /지역|상권/],
+  ["invest", /투자|예산/],
+  ["storeInfo", /물건\s*정보|점포\s*정보|소재지/],
+  ["storeHas", /물건|점포/],
+  ["fnb", /에프앤비|F\s*&\s*B|외식|경험/i],
+  ["motive", /동기|사유/],
+  ["note", /비고|메모|특이/],
+  ["replyDate", /회신\s*일|연락\s*일/],
+  ["replyMethod", /회신\s*방법|연락\s*방법/],
+  ["phone", /연락처|전화|휴대폰|핸드폰/],
+  ["email", /이메일|메일/]
+];
+export function mapHeader(header) {
+  const map = []; let reply = 0;
+  header.forEach((h, i) => {
+    const t = String(h || "").trim();
+    const hit = COLS.find(([, re]) => re.test(t));
+    if (!t) map.push(null);
+    else if (!hit) map.push({ key: "extra", label: t });
+    else if (hit[0] === "replyDate") { reply++; map.push({ key: "replyDate", n: reply, label: t }); }
+    else if (hit[0] === "replyMethod") map.push({ key: "replyMethod", n: Math.max(reply, 1), label: t });
+    else map.push({ key: hit[0], label: t });
+  });
+  return map;
+}
+
+/* 표 전체 → 등록할 문의 목록 */
+export function tableToInquiries(rows, today = new Date()) {
+  const hi = rows.findIndex(r => r.some(c => /성명|성함|이름/.test(String(c))));
+  if (hi < 0) return { error: "제목 행(접수일, 성명 …)을 찾지 못했습니다. 제목 행부터 함께 복사해 붙여넣어 주세요." };
+  const map = mapHeader(rows[hi]);
+  const used = map.filter(Boolean);
+  const items = [];
+  rows.slice(hi + 1).forEach((r, ri) => {
+    const cell = key => { const i = map.findIndex(m => m && m.key === key); return i < 0 ? "" : clean(r[i]); };
+    const name = cell("name");
+    if (!name) return;
+    const w = [];
+    const date = parseKDate(cell("date"), today);
+    if (!date) w.push("접수일을 읽지 못해 오늘 날짜로 넣었습니다.");
+    const age = parseAge(cell("age"), date || today); if (age.warn) w.push(age.warn);
+    const regionRaw = cell("region");
+    const rg = parseRegions(regionRaw); w.push(...rg.warnings);
+    const openRaw = cell("open"), op = parseOpen(openRaw, today);
+    const iv = parseInvest(cell("invest"));
+    if (cell("invest") && !iv.v) w.push(`투자비 '${cell("invest")}'를 읽지 못했습니다.`);
+    if (iv.range) w.push(`투자비 '${cell("invest")}'는 범위라 낮은 값(${iv.v.toLocaleString("ko-KR")}만원)으로 넣었습니다.`);
+    const fnbRaw = cell("fnb"), fc = classifyFnb(fnbRaw); if (fc.warn) w.push(fc.warn);
+    const has = cell("storeHas"), info = cell("storeInfo");
+    const store = /^(유|있음|보유|확보|O|Y)/i.test(has) ? "secured" : /검토/.test(has) ? "reviewing"
+      : info ? "reviewing" : has ? "none" : "";
+    // 메모: 비고 + 회신 기록 + 인식하지 못한 열
+    const memo = [];
+    const note = cell("note"); if (note) memo.push(note);
+    const replies = {};
+    map.forEach((m, i) => {
+      if (!m) return; const v = clean(r[i]); if (!v) return;
+      if (m.key === "replyDate") (replies[m.n] ||= {}).date = v;
+      else if (m.key === "replyMethod") (replies[m.n] ||= {}).method = v;
+      else if (m.key === "extra") memo.push(`${m.label}: ${v}`);
+    });
+    // 회신 기록 → 접촉 이력 (날짜를 읽지 못하면 메모에 남김)
+    const contacts = [];
+    Object.keys(replies).sort().forEach(n => {
+      const rp = replies[n], at = parseKDate(rp.date, today);
+      if (at) contacts.push({ at, method: replyMethod(rp.method), noAnswer: false,
+        summary: `${n}차 회신 (기존 엑셀 기록)`, next: "", nextAt: "" });
+      else memo.push(`${n}차 회신: ${[rp.date, rp.method].filter(Boolean).join(" ")}`);
+    });
+    const phone = fmtPhone(cell("phone"));
+    if (!phone) w.push("연락처가 없습니다.");
+    items.push({
+      row: hi + ri + 2,
+      warnings: w,
+      date: date || today,
+      data: {
+        name: name.slice(0, 30), phone, email: cell("email").slice(0, 120), ageBand: age.v,
+        regions: rg.regions, regionNote: regionRaw.slice(0, 200),
+        investment: iv.v,
+        fnbExp: fc.v, fnbDetail: fnbRaw.slice(0, 1000),
+        motive: cell("motive").slice(0, 2000),
+        openTiming: op.v, openTimingNote: openRaw.slice(0, 100),
+        operation: "", operationNote: "",
+        store, storeAddress: info.slice(0, 200), storeArea: "",
+        etc: "", memo: memo.join("\n").slice(0, 2000),
+        contacts,
+        status: contacts.some(c => c.method === "call") ? "consult" : Object.keys(replies).length ? "reviewed" : "new"
+      }
+    });
+  });
+  return { items, columns: used };
+}
+function clean(v) {
+  const t = String(v ?? "").replace(/\s+/g, " ").trim();
+  return /^[-–—]+$/.test(t) ? "" : t;
 }
