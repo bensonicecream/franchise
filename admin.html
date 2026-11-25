@@ -306,6 +306,16 @@ main{padding:20px 24px 56px;max-width:1440px;margin:0 auto}
 .src.network{background:#F4F3FF;color:#5925DC}
 .src.br{background:#FDF2FA;color:#C11574}
 .src.homepage{background:#ECFDF3;color:#067647}
+.src.expo{background:#FFF7EB;color:#B54708}
+.imp-opts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px 14px;background:#F7F9FC;border:1px solid var(--line-2);border-radius:10px;padding:12px 14px;margin:0 0 12px}
+.imp-opts label{display:grid;gap:5px;font-size:13px;font-weight:600;color:var(--ink-2)}
+.imp-opts input,.imp-opts select{height:34px;border:1px solid var(--line);border-radius:7px;padding:0 8px;background:#fff;color:var(--ink);font-weight:400;width:100%}
+.imp-opts .full{grid-column:1/-1}
+.imp-opts .inline-check{display:flex;gap:8px;align-items:flex-start;font-weight:600;cursor:pointer}
+.imp-opts .inline-check input{width:17px;height:17px;flex:none;margin:1px 0 0}
+.imp-opts small{font-weight:500;color:var(--ink-3)}
+.imp-tbl .defd{color:var(--ink-3)}
+@media (max-width:820px){.imp-opts{grid-template-columns:1fr}}
 .imp-tbl select{height:30px;border:1px solid var(--line);border-radius:6px;padding:0 6px;background:#fff;max-width:150px}
 
 /* 엑셀 일괄 등록 */
@@ -1685,7 +1695,7 @@ function openImport() {
   $("#dBody").innerHTML = `
     <section class="d-sec">
       <h3>1. 엑셀 표 붙여넣기</h3>
-      <p class="hint" style="margin:0 0 8px">엑셀에서 <b>제목 행(접수일, 성명 …)부터 마지막 행까지</b> 선택해 복사(Ctrl+C)한 뒤 아래에 붙여넣으세요(Ctrl+V). 엑셀 파일을 직접 선택해도 됩니다(첫 번째 시트).</p>
+      <p class="hint" style="margin:0 0 8px">엑셀에서 <b>제목 행(접수일, 성명 …)부터 마지막 행까지</b> 선택해 복사(Ctrl+C)한 뒤 아래에 붙여넣으세요(Ctrl+V). 엑셀 파일을 직접 선택해도 됩니다(첫 번째 시트). 박람회 상담카드처럼 양식이 따로 없으면 <a href="import-template.xlsx" download="벤슨_가맹문의_일괄등록_양식.xlsx">일괄 등록 양식</a>에 옮겨 적어 올리면 가장 정확합니다.</p>
       <textarea class="raw" id="iRaw" placeholder="여기에 붙여넣기"></textarea>
       <div class="e-row">
         <button type="button" class="btn primary" id="iPreview">미리보기</button>
@@ -1696,10 +1706,17 @@ function openImport() {
     <section class="d-sec" id="iResult" hidden>
       <h3>2. 등록할 내용 확인 <span class="muted">체크한 행만 등록됩니다. 등록 후 상세 화면 [응답 수정]으로 고칠 수 있습니다.</span></h3>
       <p class="hint" id="iCols" style="margin:0 0 8px"></p>
-      <div class="e-row" style="margin:0 0 10px"><label style="font-weight:600;color:var(--ink-2)">구분 일괄 지정
-        <select id="iSrcAll" style="height:32px;border:1px solid var(--line);border-radius:7px;margin-left:6px">
-          <option value="">행마다 선택</option>${C.SOURCE.map(o => `<option value="${o.v}">${esc(o.t)}</option>`).join("")}</select></label>
-        <span class="muted">엑셀에 '구분' 열이 있으면 그 값을 먼저 읽습니다.</span></div>
+      <div class="imp-opts">
+        <label>구분 일괄 지정<select id="iSrcAll">
+          <option value="">행마다 선택</option>${C.SOURCE.map(o => `<option value="${o.v}">${esc(o.t)}</option>`).join("")}</select>
+          <small>엑셀에 '구분' 열이 있으면 그 값을 먼저 읽습니다.</small></label>
+        <label>구분 상세 일괄 입력<input id="iNoteAll" maxlength="100" placeholder="예: 박람회명·개최일">
+          <small>구분 상세가 비어 있는 행에만 넣습니다.</small></label>
+        <label>접수일이 없는 행의 접수일<input type="date" id="iDateDef">
+          <small id="iDateInfo">박람회 개최일 등</small></label>
+        <label class="inline-check full"><input type="checkbox" id="iExpoContact">
+          <span>박람회 현장 상담을 접촉 이력으로 남기기 <small>(방법: 박람회 상담, 일시: 접수일, 내용: '상담 내용' 열 또는 '프랜차이즈 박람회 현장 상담') — 체크하지 않으면 '상담 내용'은 메모에 들어갑니다.</small></span></label>
+      </div>
       <div class="table-wrap" style="max-height:none">
         <table class="tbl imp-tbl">
           <thead><tr><th><input type="checkbox" id="iAll" checked aria-label="전체 선택"></th><th>접수일</th><th>성명</th><th>연락처</th>
@@ -1723,8 +1740,8 @@ function openImport() {
     const f = e.target.files[0]; if (!f) return;
     if (!window.XLSX) { $("#iMsg").textContent = "엑셀 라이브러리를 불러오지 못했습니다. 붙여넣기를 이용해 주세요."; return; }
     try {
-      const wb = XLSX.read(await f.arrayBuffer(), { type: "array" });
-      const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: false, defval: "" });
+      const wb = XLSX.read(await f.arrayBuffer(), { type: "array", cellDates: true });
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: false, defval: "", dateNF: "yyyy-mm-dd" });
       runImportPreview(rows.map(r => r.map(c => String(c ?? ""))));
     } catch (err) { $("#iMsg").textContent = `파일을 읽지 못했습니다. (${err.message})`; }
     e.target.value = "";
@@ -1742,7 +1759,12 @@ function openImport() {
     if (!e.target.value) return;
     importItems.forEach(it => { it.src = e.target.value; });
     $$("#iRows .i-src").forEach(s => { s.value = e.target.value; });
+    if (e.target.value === "expo") $("#iExpoContact").checked = true;
   });
+  const minKeep = new Date(); minKeep.setMonth(minKeep.getMonth() - C.RETENTION_MONTHS); minKeep.setDate(minKeep.getDate() + 1);
+  $("#iDateDef").min = toInputDate(minKeep); $("#iDateDef").max = toInputDate(new Date());
+  $("#iDateDef").value = toInputDate(new Date());
+  $("#iDateDef").addEventListener("change", () => { if (importItems.length) renderImportRows(); });
   $("#iAll").addEventListener("change", e => { importItems.forEach(it => { it.on = e.target.checked; }); renderImportRows(); });
   $("#iCancel").addEventListener("click", () => closeDrawer());
   $("#iSave").addEventListener("click", saveImport);
@@ -1755,20 +1777,29 @@ function runImportPreview(rows) {
   if (res.error) { $("#iMsg").textContent = res.error; $("#iResult").hidden = true; return; }
   if (!res.items.length) { $("#iMsg").textContent = "등록할 행이 없습니다. 성명이 있는 행만 읽습니다."; $("#iResult").hidden = true; return; }
   const phones = new Set(ALL.map(r => digits(r.phone)).filter(Boolean));
+  const seen = new Map();
   const now = Date.now();
   importItems = res.items.map(it => {
-    const dup = !!it.data.phone && phones.has(digits(it.data.phone));
+    const p = digits(it.data.phone);
+    const dup = !!p && phones.has(p);
+    const dupIn = !!p && seen.has(p);
+    if (p && !seen.has(p)) seen.set(p, it.data.name);
     const exp = C.expiryOf(it.date), expired = exp && exp.getTime() < now;
     const warnings = [
       ...(dup ? ["같은 연락처의 문의가 이미 있어 체크를 해제했습니다."] : []),
+      ...(dupIn && !dup ? [`표 안에 같은 연락처(${seen.get(p)})가 위에 있어 체크를 해제했습니다.`] : []),
       ...(expired ? [`접수일로부터 보관 기간이 지나 등록해도 바로 자동 삭제되므로 체크를 해제했습니다.`] : []),
       ...it.warnings];
-    return { ...it, warnings, on: !dup && !expired, src: it.data.source || "etc" };
+    return { ...it, warnings, on: !dup && !dupIn && !expired, src: it.data.source || "etc" };
   });
   const known = res.columns.filter(c => c.key !== "extra").map(c => c.label);
   const extra = res.columns.filter(c => c.key === "extra").map(c => c.label);
   $("#iCols").textContent = `인식한 열: ${known.join(", ")}` + (extra.length ? ` / 메모에 넣는 열: ${extra.join(", ")}` : "")
-    + ". 회신 기록은 접촉 이력으로, 비고는 메모로 들어갑니다. 전화 회신 기록이 있으면 진행 단계를 '유선 상담', 그 밖의 회신만 있으면 '1차 검토 완료'로 넣습니다.";
+    + ". 회신 기록은 접촉 이력으로, 비고는 메모로 들어갑니다. 전화 회신 기록이 있으면 진행 단계를 '유선 상담', 그 밖의 회신만 있으면 '1차 검토 완료'로 넣습니다."
+    + (res.columns.some(c => c.key === "event") ? " 박람회명 열은 구분 상세로 들어갑니다." : "");
+  const noDate = importItems.filter(it => !it.date).length;
+  $("#iDateInfo").textContent = noDate ? `${noDate}건 해당 (박람회 개최일 등)` : "모든 행에 접수일이 있습니다.";
+  if (importItems.some(it => it.src === "expo")) $("#iExpoContact").checked = true;
   $("#iMsg").textContent = `${importItems.length}건을 읽었습니다.`;
   $("#iResult").hidden = false;
   dirty = true;
@@ -1782,7 +1813,7 @@ function renderImportRows() {
     const off = it.on ? "" : " off";
     return `<tr data-i="${i}" class="${it.warnings.length ? "has-w" : ""}${off}">
       <td><input type="checkbox" class="i-on"${it.on ? " checked" : ""} aria-label="${esc(d.name)} 등록"></td>
-      <td>${fmtFull(it.date).slice(0, 10)}</td>
+      <td>${it.date ? fmtFull(it.date).slice(0, 10) : `<span class="defd" title="접수일이 없어 위 기본 접수일을 넣습니다">${fmtFull(effDate(it)).slice(0, 10)}</span>`}</td>
       <td class="who">${esc(d.name)}</td>
       <td>${esc(d.phone || "-")}</td>
       <td><select class="i-src" aria-label="${esc(d.name)} 구분">${C.SOURCE.map(o => `<option value="${o.v}"${it.src === o.v ? " selected" : ""}>${esc(o.s || o.t)}</option>`).join("")}</select></td>
@@ -1802,20 +1833,39 @@ function updateImportSum() {
   $("#iAll").checked = n === importItems.length;
 }
 
+/* 접수일: 표에 있으면 그 날짜, 없으면 '접수일이 없는 행' 날짜 */
+function effDate(it) {
+  if (it.date) return it.date;
+  const v = $("#iDateDef")?.value;
+  if (!v) return new Date();
+  const d = dayOf(v), now = new Date();
+  return toInputDate(d) === toInputDate(now) ? now : new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12);
+}
+
 async function saveImport() {
   const list = importItems.filter(it => it.on); if (!list.length) return;
   const by = DEMO ? "demo" : user.email;
   const btn = $("#iSave"); btn.disabled = true; $("#iErr").textContent = "";
   const who = whoAmI(), now = new Date();
-  const base = it => ({ ...it.data, consent: false, source: it.src || "etc", entry: "import", enteredBy: by, formVersion: C.FORM_VERSION,
-    contacts: (it.data.contacts || []).map(c => ({ id: newId(), ...c, at: ts(c.at), ...who, savedAt: ts(now) })) });
+  const expoContact = $("#iExpoContact").checked, noteAll = $("#iNoteAll").value.trim().slice(0, 100);
+  const base = it => {
+    const { contacts = [], ...data } = it.data, at = effDate(it);
+    const list2 = contacts.map(c => ({ id: newId(), ...c, at: ts(c.at), ...who, savedAt: ts(now) }));
+    let memo = data.memo || "";
+    if (expoContact) list2.push({ id: newId(), at: ts(at), method: "expo", noAnswer: false,
+      summary: it.consult || "프랜차이즈 박람회 현장 상담", next: "", nextAt: "", ...who, savedAt: ts(now) });
+    else if (it.consult) memo = [memo, `상담 내용: ${it.consult}`].filter(Boolean).join("\n").slice(0, 2000);
+    return { ...data, memo, consent: false, source: it.src || "etc",
+      sourceNote: data.sourceNote || it.eventName || noteAll, entry: "import", enteredBy: by, formVersion: C.FORM_VERSION,
+      contacts: list2 };
+  };
   try {
-    if (DEMO) list.forEach((it, k) => ALL.push({ id: `imp${Date.now()}${k}`, ...base(it), createdAt: it.date, enteredAt: new Date() }));
+    if (DEMO) list.forEach((it, k) => ALL.push({ id: `imp${Date.now()}${k}`, ...base(it), createdAt: effDate(it), enteredAt: new Date() }));
     else {
       for (let i = 0; i < list.length; i += 400) {
         const batch = fb.F.writeBatch(fb.db);
         list.slice(i, i + 400).forEach(it => batch.set(fb.F.doc(fb.F.collection(fb.db, "inquiries")),
-          { ...base(it), createdAt: fb.F.Timestamp.fromDate(it.date), enteredAt: fb.F.serverTimestamp() }));
+          { ...base(it), createdAt: fb.F.Timestamp.fromDate(effDate(it)), enteredAt: fb.F.serverTimestamp() }));
         await batch.commit();
       }
     }

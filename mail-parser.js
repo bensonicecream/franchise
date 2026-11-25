@@ -375,6 +375,7 @@ export function parseKDate(text, today = new Date()) {
 /* 회신·접촉 방법 글자 → 접촉 방법 값 */
 export function replyMethod(text) {
   const t = String(text || "");
+  if (/박람회|전시회|엑스포/.test(t)) return "expo";
   if (/메일|mail/i.test(t)) return "mail";
   if (/유선|전화|통화|콜/.test(t)) return "call";
   if (/문자|카톡|카카오|sms/i.test(t)) return "sms";
@@ -387,6 +388,7 @@ export function replyMethod(text) {
 export function sourceFrom(text) {
   const t = String(text || "").replace(/\s+/g, "");
   if (!t) return "";
+  if (/박람회|전시회|엑스포|expo/i.test(t)) return "expo";
   if (/배스킨|베스킨|BR|비알|전환/i.test(t)) return "br";
   if (/네트워크|기존점주|점주소개|지인|소개|추천|인맥/.test(t)) return "network";
   if (/홈페이지|홈피|웹사이트/.test(t)) return "homepage";
@@ -406,8 +408,12 @@ const COLS = [
   ["invest", /투자|예산/],
   ["storeInfo", /물건\s*정보|점포\s*정보|소재지/],
   ["storeHas", /물건|점포/],
+  ["oper", /운영\s*(참여|계획|방식|형태)|직접\s*운영/],
   ["fnb", /에프앤비|F\s*&\s*B|외식|경험/i],
   ["motive", /동기|사유/],
+  ["consult", /상담\s*(내용|메모|기록)|현장\s*상담/],
+  ["event", /박람회|행사/],
+  ["etc", /기타\s*문의|문의\s*사항|문의\s*내용|궁금/],
   ["note", /비고|메모|특이/],
   ["replyDate", /회신\s*일|연락\s*일/],
   ["replyMethod", /회신\s*방법|연락\s*방법/],
@@ -428,25 +434,46 @@ export function mapHeader(header) {
   return map;
 }
 
+/* 엑셀에서 숫자로 저장돼 앞자리 0이 빠진 번호(1012345678), +82 번호 보정 */
+export function normPhone(v) {
+  let d = String(v || "").replace(/\.0+$/, "").replace(/\D/g, "");
+  if (d.startsWith("82") && d.length >= 11) d = "0" + d.slice(2);
+  if (d.length === 10 && /^1[016789]/.test(d)) d = "0" + d;
+  return fmtPhone(d);
+}
+
+/* 운영 참여 계획 글자 → 값 */
+export function classifyOper(text) {
+  const o = String(text || "").trim();
+  if (!o) return { v: "", note: "" };
+  const self = /직접|본인/.test(o), mgr = /관리자|채용|오토|위탁/.test(o);
+  if (self && !mgr) return { v: "self", note: "" };
+  if (mgr && !self) return { v: "manager", note: "" };
+  return { v: "other", note: o.slice(0, 200) };
+}
+
 /* 표 전체 → 등록할 문의 목록 */
 export function tableToInquiries(rows, today = new Date()) {
   const hi = rows.findIndex(r => r.some(c => /성명|성함|이름/.test(String(c))));
   if (hi < 0) return { error: "제목 행(접수일, 성명 …)을 찾지 못했습니다. 제목 행부터 함께 복사해 붙여넣어 주세요." };
   const map = mapHeader(rows[hi]);
   const used = map.filter(Boolean);
+  const invLabel = (map.find(m => m && m.key === "invest") || {}).label || "";
   const items = [];
   rows.slice(hi + 1).forEach((r, ri) => {
     const cell = key => { const i = map.findIndex(m => m && m.key === key); return i < 0 ? "" : clean(r[i]); };
     const name = cell("name");
     if (!name) return;
     const w = [];
-    const date = parseKDate(cell("date"), today);
-    if (!date) w.push("접수일을 읽지 못해 오늘 날짜로 넣었습니다.");
+    const dateRaw = cell("date"), date = parseKDate(dateRaw, today);
+    if (dateRaw && !date) w.push(`접수일 '${dateRaw}'를 읽지 못해 '접수일이 없는 행' 날짜로 넣습니다.`);
     const age = parseAge(cell("age"), date || today); if (age.warn) w.push(age.warn);
     const regionRaw = cell("region");
     const rg = parseRegions(regionRaw); w.push(...rg.warnings);
     const openRaw = cell("open"), op = parseOpen(openRaw, today);
-    const iv = parseInvest(cell("invest"));
+    const invRaw = cell("invest");
+    const iv = /^[\d,.]+$/.test(invRaw) && /억/.test(invLabel) && !/만/.test(invLabel)
+      ? { v: Math.round(parseFloat(invRaw.replace(/,/g, "")) * 10000) } : parseInvest(invRaw);
     if (cell("invest") && !iv.v) w.push(`투자비 '${cell("invest")}'를 읽지 못했습니다.`);
     if (iv.range) w.push(`투자비 '${cell("invest")}'는 범위라 낮은 값(${iv.v.toLocaleString("ko-KR")}만원)으로 넣었습니다.`);
     const fnbRaw = cell("fnb"), fc = classifyFnb(fnbRaw); if (fc.warn) w.push(fc.warn);
@@ -471,12 +498,15 @@ export function tableToInquiries(rows, today = new Date()) {
         summary: `${n}차 회신 (기존 엑셀 기록)`, next: "", nextAt: "" });
       else memo.push(`${n}차 회신: ${[rp.date, rp.method].filter(Boolean).join(" ")}`);
     });
-    const phone = fmtPhone(cell("phone"));
+    const phone = normPhone(cell("phone"));
+    const oc = classifyOper(cell("oper"));
     if (!phone) w.push("연락처가 없습니다.");
     items.push({
       row: hi + ri + 2,
       warnings: w,
-      date: date || today,
+      date,                                           // 없으면 null → 화면에서 '접수일이 없는 행' 날짜 적용
+      consult: cell("consult").slice(0, 2000),        // 현장 상담 내용 (접촉 이력 또는 메모로)
+      eventName: cell("event").slice(0, 100),
       data: {
         source: sourceFrom(cell("kind")),
         sourceNote: (() => {                          // 구분 원문이 정해진 이름과 다르면 상세에 남김
@@ -489,9 +519,9 @@ export function tableToInquiries(rows, today = new Date()) {
         fnbExp: fc.v, fnbDetail: fnbRaw.slice(0, 1000),
         motive: cell("motive").slice(0, 2000),
         openTiming: op.v, openTimingNote: openRaw.slice(0, 100),
-        operation: "", operationNote: "",
+        operation: oc.v, operationNote: oc.note,
         store, storeAddress: info.slice(0, 200), storeArea: "",
-        etc: "", memo: memo.join("\n").slice(0, 2000),
+        etc: cell("etc").slice(0, 2000), memo: memo.join("\n").slice(0, 2000),
         contacts,
         status: contacts.some(c => c.method === "call") ? "consult" : Object.keys(replies).length ? "reviewed" : "new"
       }

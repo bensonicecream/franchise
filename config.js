@@ -72,7 +72,7 @@ export const INACTIVE = ["hold", "closed"];   // 연락 예정·2차 평가 대�
 /* 접촉 이력 — 접촉 방법 */
 export const CONTACT_METHODS = [
   { v: "call", t: "전화" }, { v: "sms", t: "문자·카톡" }, { v: "mail", t: "메일" },
-  { v: "meet", t: "대면 상담" }, { v: "visit", t: "매장·점포 방문" }, { v: "etc", t: "기타" }
+  { v: "meet", t: "대면 상담" }, { v: "expo", t: "박람회 상담" }, { v: "visit", t: "매장·점포 방문" }, { v: "etc", t: "기타" }
 ];
 
 /* ⑥ 2차 심층 상담평가 기본값 (초안)
@@ -116,6 +116,7 @@ export const SOURCE = [
   { v: "mail", t: "메일 접수", s: "메일 접수" },
   { v: "network", t: "기존 네트워크 기반 점주", s: "네트워크 점주", hint: "소개자·관계 (예: ○○점 점주 소개)" },
   { v: "br", t: "배스킨라빈스 전환점", s: "BR 전환점", hint: "운영 중인 배스킨라빈스 매장명·운영 기간" },
+  { v: "expo", t: "프랜차이즈 박람회 접수", s: "박람회", hint: "박람회명·개최일" },
   { v: "homepage", t: "홈페이지 접수", s: "홈페이지" },
   { v: "etc", t: "기타", s: "기타" }
 ];
